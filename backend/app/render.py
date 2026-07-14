@@ -37,21 +37,19 @@ def _annotate_amounts(recipe: dict) -> None:
 
 
 class RecipeFiles:
-    """Paths/ids for a recipe already written to work_dir, reusable across
-    several test compiles at different font sizes (see main._fit_steps_font_size)
+    """Paths for a recipe already written to work_dir, reusable across several
+    test compiles at different font sizes (see main._fit_steps_font_size)
     without re-fetching the recipe or re-writing its JSON/image each time."""
 
-    def __init__(self, json_filename: str, image_arg: str, id_prefix: str):
+    def __init__(self, json_filename: str, image_arg: str):
         self.json_filename = json_filename
         self.image_arg = image_arg
-        self.id_prefix = id_prefix
 
     def call(self, page_number: bool, steps_font_size_pt: float) -> str:
         page_number_arg = "true" if page_number else "false"
         return (
             f"#recipe_from_json(json({_typst_string_literal(self.json_filename)}), "
             f"image_path: {self.image_arg}, page_number: {page_number_arg}, "
-            f"id_prefix: {_typst_string_literal(self.id_prefix)}, "
             f"steps_font_size_pt: {steps_font_size_pt}pt)\n"
         )
 
@@ -76,9 +74,7 @@ def write_recipe_files(
             f.write(image_bytes)
         image_arg = _typst_string_literal(image_filename)
 
-    # id_prefix keeps footnote label names unique across recipes when several
-    # end up in the same compiled document (the collected cookbook PDF).
-    return RecipeFiles(json_filename, image_arg, id_prefix=f"r{index}")
+    return RecipeFiles(json_filename, image_arg)
 
 
 def write_main(work_dir: str, entries: list[str], filename: str = "main.typ") -> None:
