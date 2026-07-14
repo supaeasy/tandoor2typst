@@ -136,6 +136,8 @@
   waiting_time: "",
   ingredients: (),
   steps: (),
+  source_url: "",
+  source_domain: "",
   page_number: false,
   id_prefix: "r",
   steps_font_size_pt: 11pt,
@@ -177,6 +179,7 @@
       #if working_time != "" [_Zubereitung: #working_time _]
       #if waiting_time != "" [\ _Wartezeit: #waiting_time _]
       #if servings > 0 [\ _Portionen: #servings _]
+      #if source_url != "" [\ _Quelle: #text(fill: primary_colour)[#link(source_url)[#source_domain]]_]
     ],
   )
 
@@ -231,6 +234,8 @@
 
   let working_time = if recipe_data.working_time > 0 { str(recipe_data.working_time) + " min" } else { "" }
   let waiting_time = if recipe_data.waiting_time > 0 { str(recipe_data.waiting_time) + " min" } else { "" }
+  let source_url = if recipe_data.at("source_url", default: none) not in (none, "") { recipe_data.source_url } else { "" }
+  let source_domain = if recipe_data.at("source_domain", default: none) not in (none, "") { recipe_data.source_domain } else { "" }
 
   recipe(
     title: recipe_data.name,
@@ -241,6 +246,8 @@
     waiting_time: waiting_time,
     ingredients: all_ingredients,
     steps: recipe_data.steps,
+    source_url: source_url,
+    source_domain: source_domain,
     image_path: image_path,
     page_number: page_number,
     id_prefix: id_prefix,
