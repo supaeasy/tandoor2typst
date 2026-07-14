@@ -4,8 +4,8 @@
 //
 // Unlike the original gist (meant for the `typst compile --input` CLI flow),
 // this version takes already-parsed dictionaries/paths as plain function
-// arguments, since the browser extension builds the document in-memory via
-// typst.ts instead of shelling out to the CLI.
+// arguments - the backend (see backend/app/render.py) writes a small driver
+// document per request/job that imports this file and calls recipe_from_json().
 
 #let primary_colour = rgb("#ce1f36")
 #let text_colour = rgb("#333")
@@ -25,9 +25,21 @@
     return text(fill: primary_colour, font: heading_font, weight: 500, size: 10.5pt, upper(ingredient.food.name))
   }
 
+  let plural = ingredient.amount > 1
+
   let amount = if ingredient.amount > 0 and not ingredient.no_amount { str(ingredient.amount) } else { "" }
-  let unit = if ingredient.unit != none { ingredient.unit.name } else { "" }
-  let food = ingredient.food.name
+  let unit = if ingredient.unit != none and ingredient.unit.name != "-" {
+    if plural and ingredient.unit.plural_name not in (none, "") {
+      ingredient.unit.plural_name
+    } else {
+      ingredient.unit.name
+    }
+  } else { "" }
+  let food = if plural and ingredient.food.plural_name not in (none, "") {
+    ingredient.food.plural_name
+  } else {
+    ingredient.food.name
+  }
   let note_text = if ingredient.note != none and ingredient.note != "" { footnote(ingredient.note) } else { "" }
 
   if amount != "" and unit != "" {
@@ -109,6 +121,7 @@
       #set align(right)
       #if working_time != "" [_Zubereitung: #working_time _]
       #if waiting_time != "" [\ _Wartezeit: #waiting_time _]
+      #if servings > 0 [\ _Portionen: #servings _]
     ],
   )
 
@@ -124,7 +137,6 @@
       #set list(marker: [], body-indent: 0pt)
       #set align(right)
       #text(fill: primary_colour, font: heading_font, weight: 300, size: 11pt, upper([Zutaten\ ]))
-      #[#servings #servings_text]
 
       #display_ingredients(ingredients)
     ],
@@ -133,6 +145,18 @@
     ],
   )
   v(30pt)
+
+  if servings_text != "" {
+    place(bottom + left, box(
+      stroke: 0.6pt + primary_colour,
+      inset: 8pt,
+      radius: 2pt,
+      width: 200pt,
+    )[
+      #set text(size: 8.5pt, fill: text_colour, font: body_font)
+      *Benötigtes Geschirr:* #servings_text
+    ])
+  }
 }
 
 #let recipe_from_json(recipe_data, image_path: none, page_number: false) = {
