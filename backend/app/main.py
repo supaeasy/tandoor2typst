@@ -40,6 +40,27 @@ def _content_disposition(filename: str) -> str:
     return f"attachment; filename=\"{ascii_fallback}\"; filename*=UTF-8''{quote(filename)}"
 
 
+DEFAULT_STEPS_FONT_SIZE = 11
+MIN_STEPS_FONT_SIZE = 8
+
+
+def _fit_steps_font_size(work_dir: str, recipe_files: render.RecipeFiles, test_id) -> int:
+    """The preparation-steps column now defaults to a larger font than
+    before, but a longer recipe can then overflow onto an otherwise near-empty
+    extra page. Test-compile the recipe standalone, shrinking the steps text
+    1pt at a time until it fits on one page or MIN_STEPS_FONT_SIZE is reached -
+    the same approach the old xcookybooky/LaTeX backend used."""
+    test_typ = f"sizetest_{test_id}.typ"
+    test_pdf = f"sizetest_{test_id}.pdf"
+    for size in range(DEFAULT_STEPS_FONT_SIZE, MIN_STEPS_FONT_SIZE - 1, -1):
+        render.write_main(work_dir, [recipe_files.call(page_number=False, steps_font_size_pt=size)], filename=test_typ)
+        pages = compile_typ(work_dir, test_typ, test_pdf, timeout=60)
+        logger.info("Recipe %s: steps_font_size=%dpt -> %d page(s)", test_id, size, pages)
+        if pages <= 1:
+            return size
+    return MIN_STEPS_FONT_SIZE
+
+
 @app.get("/healthz")
 def healthz():
     return {"status": "ok"}
@@ -59,8 +80,9 @@ def get_recipe_pdf(recipe_id: int, payload: dict = Body(...)):
     image = client.download_image(recipe)
 
     work_dir = tempfile.mkdtemp(prefix="tandoor_pdf_")
-    entry = render.write_recipe_entry(work_dir, recipe, "single", image, page_number=False)
-    render.write_main(work_dir, [entry])
+    recipe_files = render.write_recipe_files(work_dir, recipe, "single", image)
+    font_size = _fit_steps_font_size(work_dir, recipe_files, "single")
+    render.write_main(work_dir, [recipe_files.call(page_number=False, steps_font_size_pt=font_size)])
 
     logger.info("Recipe %s (%s): compiling PDF", recipe_id, recipe_name)
     compile_typ(work_dir, "main.typ", "main.pdf")
@@ -106,7 +128,9 @@ def _run_all_recipes_job(job_id: str, host: str, token: str) -> None:
             _set_job(job_id, current=index + 1)
             recipe = client.fetch_recipe(recipe_id)
             image = client.download_image(recipe)
-            entries.append(render.write_recipe_entry(work_dir, recipe, index, image, page_number=True))
+            recipe_files = render.write_recipe_files(work_dir, recipe, index, image)
+            font_size = _fit_steps_font_size(work_dir, recipe_files, index)
+            entries.append(recipe_files.call(page_number=True, steps_font_size_pt=font_size))
 
         render.write_main(work_dir, entries)
 

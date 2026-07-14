@@ -36,15 +36,33 @@ def _annotate_amounts(recipe: dict) -> None:
             ingredient["amount_frac"] = _amount_to_fraction_parts(ingredient.get("amount", 0))
 
 
-def write_recipe_entry(
+class RecipeFiles:
+    """Paths/ids for a recipe already written to work_dir, reusable across
+    several test compiles at different font sizes (see main._fit_steps_font_size)
+    without re-fetching the recipe or re-writing its JSON/image each time."""
+
+    def __init__(self, json_filename: str, image_arg: str, id_prefix: str):
+        self.json_filename = json_filename
+        self.image_arg = image_arg
+        self.id_prefix = id_prefix
+
+    def call(self, page_number: bool, steps_font_size_pt: float) -> str:
+        page_number_arg = "true" if page_number else "false"
+        return (
+            f"#recipe_from_json(json({_typst_string_literal(self.json_filename)}), "
+            f"image_path: {self.image_arg}, page_number: {page_number_arg}, "
+            f"id_prefix: {_typst_string_literal(self.id_prefix)}, "
+            f"steps_font_size_pt: {steps_font_size_pt}pt)\n"
+        )
+
+
+def write_recipe_files(
     work_dir: str,
     recipe: dict,
-    index: int,
+    index,
     image: tuple[bytes, str] | None,
-    page_number: bool,
-) -> str:
-    """Writes recipe_{index}.json (and the image, if any) into work_dir and
-    returns the Typst call that renders it."""
+) -> RecipeFiles:
+    """Writes recipe_{index}.json (and the image, if any) into work_dir."""
     _annotate_amounts(recipe)
     json_filename = f"recipe_{index}.json"
     with open(os.path.join(work_dir, json_filename), "w", encoding="utf-8") as f:
@@ -58,18 +76,13 @@ def write_recipe_entry(
             f.write(image_bytes)
         image_arg = _typst_string_literal(image_filename)
 
-    page_number_arg = "true" if page_number else "false"
     # id_prefix keeps footnote label names unique across recipes when several
     # end up in the same compiled document (the collected cookbook PDF).
-    id_prefix = _typst_string_literal(f"r{index}")
-    return (
-        f"#recipe_from_json(json({_typst_string_literal(json_filename)}), "
-        f"image_path: {image_arg}, page_number: {page_number_arg}, id_prefix: {id_prefix})\n"
-    )
+    return RecipeFiles(json_filename, image_arg, id_prefix=f"r{index}")
 
 
-def write_main(work_dir: str, entries: list[str]) -> None:
+def write_main(work_dir: str, entries: list[str], filename: str = "main.typ") -> None:
     ensure_template_copied(work_dir)
     body = '#import "template.typ": recipe_from_json\n' + "#pagebreak()\n".join(entries)
-    with open(os.path.join(work_dir, "main.typ"), "w", encoding="utf-8") as f:
+    with open(os.path.join(work_dir, filename), "w", encoding="utf-8") as f:
         f.write(body)

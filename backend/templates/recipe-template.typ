@@ -124,6 +124,7 @@
   steps: (),
   page_number: false,
   id_prefix: "r",
+  steps_font_size_pt: 11pt,
 ) = {
   set page(
     margin: (x: 54pt, y: 52pt),
@@ -171,7 +172,7 @@
   }
 
   grid(
-    columns: (90pt, 380pt),
+    columns: (140pt, 330pt),
     column-gutter: 15pt,
     [
       #set list(marker: [], body-indent: 0pt)
@@ -181,6 +182,7 @@
       #display_ingredients(ingredients, id_prefix)
     ],
     [
+      #set text(size: steps_font_size_pt)
       #display_steps(steps)
     ],
   )
@@ -199,7 +201,7 @@
   }
 }
 
-#let recipe_from_json(recipe_data, image_path: none, page_number: false, id_prefix: "r") = {
+#let recipe_from_json(recipe_data, image_path: none, page_number: false, id_prefix: "r", steps_font_size_pt: 11pt) = {
   let all_ingredients = ()
   for step in recipe_data.steps {
     for ingredient in step.ingredients {
@@ -222,5 +224,6 @@
     image_path: image_path,
     page_number: page_number,
     id_prefix: id_prefix,
+    steps_font_size_pt: steps_font_size_pt,
   )
 }
