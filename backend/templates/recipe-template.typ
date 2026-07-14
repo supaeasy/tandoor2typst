@@ -73,6 +73,20 @@
   }
 }
 
+// Counts distinct non-empty ingredient notes - used to estimate how tall the
+// footnote block at the bottom of the page will be (see the "Benötigtes
+// Geschirr" placement below), since Typst doesn't expose the footnote area's
+// layout position for us to align against directly.
+#let count_distinct_notes(ingredients) = {
+  let seen = (:)
+  for ingredient in ingredients {
+    if ingredient.note not in (none, "") and ingredient.note not in seen {
+      seen.insert(ingredient.note, true)
+    }
+  }
+  seen.len()
+}
+
 // Ingredients that share the exact same note text (e.g. several "für Sauce"
 // entries) should share a single footnote number instead of getting a fresh
 // one each - Typst reuses a footnote's number when it's referenced by label.
@@ -189,7 +203,13 @@
   v(30pt)
 
   if servings_text != "" {
-    place(bottom + left, box(
+    // Typst doesn't expose where its auto-generated footnote area starts, so
+    // this estimates the footnote block's height from how many distinct
+    // notes it has (~1 line each at the footnote text's default size) and
+    // places the box's top edge there, right-aligned next to the footnotes.
+    let note_count = count_distinct_notes(ingredients)
+    let estimated_footnote_height = note_count * 11pt + 6pt
+    place(bottom + right, dy: -estimated_footnote_height, box(
       stroke: 0.6pt + primary_colour,
       inset: 8pt,
       radius: 2pt,
