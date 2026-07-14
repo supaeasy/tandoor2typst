@@ -17,7 +17,30 @@
 
 #let image-height = 15em
 
-#let format_ingredient(ingredient) = {
+// A decimal amount like 0.25 arrives pre-split by the backend (see
+// _amount_to_fraction_parts in app/render.py) into whole/num/den parts, so it
+// can be rendered as a small nicefrac-style fraction instead of a raw decimal.
+#let format_amount(frac) = {
+  if frac.whole > 0 and frac.num > 0 {
+    [#frac.whole#super[#frac.num]⁄#sub[#frac.den]]
+  } else if frac.whole > 0 {
+    str(frac.whole)
+  } else if frac.num > 0 {
+    [#super[#frac.num]⁄#sub[#frac.den]]
+  } else {
+    ""
+  }
+}
+
+// Short/abbreviated units (g, kg, ml, l, ...) sit much closer to the amount
+// than spelled-out units (Esslöffel, Becher, ...) - a full space reads as too
+// loose for e.g. "100 g", so use an eighth-of-an-em space there instead.
+#let amount_unit_space(unit) = {
+  if unit.len() <= 3 { h(0.125em) } else { " " }
+}
+
+#let format_ingredient(ingredient, note_content) = {
+  // note_content is precomputed by display_ingredients (see below)
   set list(tight: false)
   set par(spacing: 0.8em, leading: 0.3em)
 
@@ -27,7 +50,7 @@
 
   let plural = ingredient.amount > 1
 
-  let amount = if ingredient.amount > 0 and not ingredient.no_amount { str(ingredient.amount) } else { "" }
+  let amount = if ingredient.amount > 0 and not ingredient.no_amount { format_amount(ingredient.amount_frac) } else { "" }
   let unit = if ingredient.unit != none and ingredient.unit.name != "-" {
     if plural and ingredient.unit.plural_name not in (none, "") {
       ingredient.unit.plural_name
@@ -40,20 +63,36 @@
   } else {
     ingredient.food.name
   }
-  let note_text = if ingredient.note != none and ingredient.note != "" { footnote(ingredient.note) } else { "" }
 
   if amount != "" and unit != "" {
-    [- #amount #unit #food#note_text]
+    [- #amount#amount_unit_space(unit)#unit #food#note_content]
   } else if amount != "" {
-    [- #amount #food#note_text]
+    [- #amount #food#note_content]
   } else {
-    [- #food#note_text]
+    [- #food#note_content]
   }
 }
 
-#let display_ingredients(ingredients) = {
+// Ingredients that share the exact same note text (e.g. several "für Sauce"
+// entries) should share a single footnote number instead of getting a fresh
+// one each - Typst reuses a footnote's number when it's referenced by label.
+// id_prefix keeps label names unique across recipes when several are
+// compiled into one document (the collected cookbook PDF).
+#let display_ingredients(ingredients, id_prefix) = {
+  let seen = (:)
   emph(for ingredient in ingredients {
-    format_ingredient(ingredient)
+    let note_content = []
+    if ingredient.note not in (none, "") {
+      let note = ingredient.note
+      if note in seen {
+        note_content = footnote(seen.at(note))
+      } else {
+        let lbl = label(id_prefix + "-fn-note-" + str(seen.len()))
+        seen.insert(note, lbl)
+        note_content = [#footnote[#note]#lbl]
+      }
+    }
+    format_ingredient(ingredient, note_content)
   })
 }
 
@@ -84,6 +123,7 @@
   ingredients: (),
   steps: (),
   page_number: false,
+  id_prefix: "r",
 ) = {
   set page(
     margin: (x: 54pt, y: 52pt),
@@ -138,7 +178,7 @@
       #set align(right)
       #text(fill: primary_colour, font: heading_font, weight: 300, size: 11pt, upper([Zutaten\ ]))
 
-      #display_ingredients(ingredients)
+      #display_ingredients(ingredients, id_prefix)
     ],
     [
       #display_steps(steps)
@@ -159,7 +199,7 @@
   }
 }
 
-#let recipe_from_json(recipe_data, image_path: none, page_number: false) = {
+#let recipe_from_json(recipe_data, image_path: none, page_number: false, id_prefix: "r") = {
   let all_ingredients = ()
   for step in recipe_data.steps {
     for ingredient in step.ingredients {
@@ -181,5 +221,6 @@
     steps: recipe_data.steps,
     image_path: image_path,
     page_number: page_number,
+    id_prefix: id_prefix,
   )
 }
