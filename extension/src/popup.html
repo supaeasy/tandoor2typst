@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <title>Tandoor zu PDF (Typst)</title>
+    <link rel="stylesheet" href="theme.css" />
+    <style>
+      body { width: 300px; }
+    </style>
+  </head>
+  <body>
+    <div class="tandoor-header">
+      <img src="../icons/icon32.png" alt="" />
+      <h1>Tandoor zu PDF</h1>
+    </div>
+    <div class="tandoor-body">
+      <div id="unconfigured" style="display:none">
+        <p class="hint">Bitte zuerst <a id="openOptions">Einstellungen</a> ausfüllen.</p>
+      </div>
+      <div id="configured" style="display:none">
+        <div class="tandoor-card">
+          <button class="tandoor-btn" id="downloadAll">📚 Alle Rezepte als PDF</button>
+          <div id="status"></div>
+          <p class="hint">Läuft im Hintergrund weiter, auch wenn du dieses Fenster schließt.</p>
+        </div>
+        <p class="hint" style="margin-top:12px;"><a id="openOptions2">Einstellungen ändern</a></p>
+      </div>
+    </div>
+
+    <script src="settings.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>

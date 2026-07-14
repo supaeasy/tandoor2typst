@@ -1,0 +1,168 @@
+import logging
+import os
+import re
+import shutil
+import sys
+import tempfile
+import threading
+import uuid
+from urllib.parse import quote
+
+from fastapi import Body, FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from starlette.background import BackgroundTask
+
+from . import render
+from .compiler import compile_typ
+from .tandoor_client import TandoorClient
+
+logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger("tandoor2typst")
+
+app = FastAPI(title="Tandoor2typst-service")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+def _sanitize_filename(name: str) -> str:
+    name = re.sub(r"[\\/:*?\"<>|]", "-", name).strip()
+    return name or "recipe"
+
+
+def _content_disposition(filename: str) -> str:
+    ascii_fallback = filename.encode("ascii", "ignore").decode("ascii") or "recipe.pdf"
+    return f"attachment; filename=\"{ascii_fallback}\"; filename*=UTF-8''{quote(filename)}"
+
+
+@app.get("/healthz")
+def healthz():
+    return {"status": "ok"}
+
+
+@app.post("/api/recipe/{recipe_id}")
+def get_recipe_pdf(recipe_id: int, payload: dict = Body(...)):
+    host = payload.get("host")
+    token = payload.get("token")
+    if not host or not token:
+        raise HTTPException(status_code=400, detail="host and token are required.")
+
+    logger.info("Recipe %s: fetching from %s", recipe_id, host)
+    client = TandoorClient(host, token)
+    recipe = client.fetch_recipe(recipe_id)
+    recipe_name = recipe.get("name") or f"Recipe {recipe_id}"
+    image = client.download_image(recipe)
+
+    work_dir = tempfile.mkdtemp(prefix="tandoor_pdf_")
+    entry = render.write_recipe_entry(work_dir, recipe, "single", image, page_number=False)
+    render.write_main(work_dir, [entry])
+
+    logger.info("Recipe %s (%s): compiling PDF", recipe_id, recipe_name)
+    compile_typ(work_dir, "main.typ", "main.pdf")
+    logger.info("Recipe %s (%s): done, sending PDF", recipe_id, recipe_name)
+    download_name = f"{_sanitize_filename(recipe_name)}.pdf"
+
+    return FileResponse(
+        os.path.join(work_dir, "main.pdf"),
+        media_type="application/pdf",
+        headers={"Content-Disposition": _content_disposition(download_name)},
+        background=BackgroundTask(shutil.rmtree, work_dir, ignore_errors=True),
+    )
+
+
+# In-memory job tracking for the (potentially long-running) collected PDF
+# build, so the extension can poll for progress instead of just waiting on
+# one blocking request. Fine for a single-container, personal-use service.
+JOBS: dict[str, dict] = {}
+JOBS_LOCK = threading.Lock()
+
+
+def _set_job(job_id: str, **fields) -> None:
+    with JOBS_LOCK:
+        JOBS.setdefault(job_id, {}).update(fields)
+
+
+def _run_all_recipes_job(job_id: str, host: str, token: str) -> None:
+    try:
+        _set_job(job_id, status="fetching_list", current=0, total=0)
+        logger.info("Job %s: fetching recipe list from %s", job_id, host)
+        client = TandoorClient(host, token)
+        recipe_ids = client.fetch_all_recipe_ids()
+        if not recipe_ids:
+            _set_job(job_id, status="error", detail="No recipes found on this Tandoor instance.")
+            return
+        logger.info("Job %s: %d recipes found", job_id, len(recipe_ids))
+        _set_job(job_id, status="fetching", total=len(recipe_ids))
+
+        work_dir = tempfile.mkdtemp(prefix="tandoor_book_")
+        entries = []
+        for index, recipe_id in enumerate(recipe_ids):
+            logger.info("Job %s: fetching recipe %d/%d (id=%s)", job_id, index + 1, len(recipe_ids), recipe_id)
+            _set_job(job_id, current=index + 1)
+            recipe = client.fetch_recipe(recipe_id)
+            image = client.download_image(recipe)
+            entries.append(render.write_recipe_entry(work_dir, recipe, index, image, page_number=True))
+
+        render.write_main(work_dir, entries)
+
+        logger.info("Job %s: compiling %d recipes", job_id, len(recipe_ids))
+        _set_job(job_id, status="compiling")
+        compile_typ(work_dir, "main.typ", "main.pdf", timeout=600)
+        logger.info("Job %s: done", job_id)
+        _set_job(job_id, status="done", pdf_path=os.path.join(work_dir, "main.pdf"), work_dir=work_dir)
+    except HTTPException as exc:
+        logger.error("Job %s failed: %s", job_id, exc.detail)
+        _set_job(job_id, status="error", detail=str(exc.detail))
+    except Exception as exc:  # noqa: BLE001 - report any failure back to the client
+        logger.exception("Job %s failed", job_id)
+        _set_job(job_id, status="error", detail=str(exc))
+
+
+@app.post("/api/recipes/all/start")
+def start_all_recipes_job(payload: dict = Body(...)):
+    host = payload.get("host")
+    token = payload.get("token")
+    if not host or not token:
+        raise HTTPException(status_code=400, detail="host and token are required.")
+
+    job_id = uuid.uuid4().hex
+    _set_job(job_id, status="queued", current=0, total=0)
+    thread = threading.Thread(target=_run_all_recipes_job, args=(job_id, host, token), daemon=True)
+    thread.start()
+    return {"job_id": job_id}
+
+
+@app.get("/api/jobs/{job_id}")
+def get_job_status(job_id: str):
+    with JOBS_LOCK:
+        job = JOBS.get(job_id)
+        if not job:
+            raise HTTPException(status_code=404, detail="Unknown job id.")
+        return {k: v for k, v in job.items() if k not in ("pdf_path", "work_dir")}
+
+
+@app.get("/api/jobs/{job_id}/download")
+def download_job_pdf(job_id: str):
+    with JOBS_LOCK:
+        job = JOBS.get(job_id)
+        if not job or job.get("status") != "done":
+            raise HTTPException(status_code=409, detail="Job is not finished yet.")
+        pdf_path = job["pdf_path"]
+        work_dir = job["work_dir"]
+
+    def cleanup():
+        shutil.rmtree(work_dir, ignore_errors=True)
+        with JOBS_LOCK:
+            JOBS.pop(job_id, None)
+
+    return FileResponse(
+        pdf_path,
+        media_type="application/pdf",
+        headers={"Content-Disposition": _content_disposition("Rezeptsammlung.pdf")},
+        background=BackgroundTask(cleanup),
+    )

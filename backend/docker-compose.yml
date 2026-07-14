@@ -1,0 +1,6 @@
+services:
+  tandoor2typst:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8124:8080"

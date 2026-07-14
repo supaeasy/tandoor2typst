@@ -1,0 +1,164 @@
+/* Shared theme for the extension's popup and options page, matching
+   Tandoor's own Vuetify color palette (vue3/src/vuetify.ts upstream). */
+
+:root {
+  --tandoor-accent: #ddbf86;
+  --tandoor-primary: #b98766;
+  --tandoor-secondary: #b55e4f;
+  --tandoor-success: #82aa8b;
+  --tandoor-info: #385f84;
+  --tandoor-warning: #eaaa21;
+  --tandoor-error: #a7240e;
+
+  --bg: #f5efea;
+  --surface: #ffffff;
+  --text: #2b2320;
+  --text-muted: #6b5f57;
+  --border: #e3d5c5;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #121212;
+    --surface: #1e1e1e;
+    --text: #ece6e0;
+    --text-muted: #b3a99f;
+    --border: #3a332c;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", Roboto, -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.tandoor-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  background: var(--tandoor-accent);
+  color: #2b2320;
+}
+
+.tandoor-header img {
+  width: 26px;
+  height: 26px;
+}
+
+.tandoor-header h1 {
+  margin: 0;
+  font-size: 1.05em;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.tandoor-body {
+  padding: 16px 18px;
+}
+
+.tandoor-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+
+label {
+  display: block;
+  margin-top: 14px;
+  margin-bottom: 4px;
+  font-weight: 600;
+  font-size: 0.85em;
+  color: var(--text);
+}
+label:first-child {
+  margin-top: 0;
+}
+
+input[type="text"],
+input[type="url"],
+input[type="password"] {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.95em;
+}
+
+input:focus {
+  outline: none;
+  border-color: var(--tandoor-primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--tandoor-primary) 30%, transparent);
+}
+
+.hint {
+  color: var(--text-muted);
+  font-size: 0.78em;
+  margin: 4px 0 0;
+  line-height: 1.4;
+}
+
+button.tandoor-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 18px;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  background: var(--tandoor-primary);
+  color: #fff;
+  font-size: 0.95em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 0.15s ease, transform 0.05s ease;
+}
+
+button.tandoor-btn:hover {
+  filter: brightness(1.08);
+}
+
+button.tandoor-btn:active {
+  transform: translateY(1px);
+}
+
+button.tandoor-btn:disabled {
+  background: var(--border);
+  color: var(--text-muted);
+  cursor: not-allowed;
+  filter: none;
+}
+
+#status {
+  margin-top: 12px;
+  font-size: 0.85em;
+  color: var(--text-muted);
+  min-height: 1.2em;
+}
+
+#status.error {
+  color: var(--tandoor-error);
+}
+
+#status.success {
+  color: var(--tandoor-success);
+}
+
+a {
+  color: var(--tandoor-info);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}

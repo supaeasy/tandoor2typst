@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <title>Tandoor zu PDF – Einstellungen</title>
+    <link rel="stylesheet" href="theme.css" />
+    <style>
+      body { display: flex; justify-content: center; min-height: 100vh; }
+      .page { width: 100%; max-width: 480px; }
+      .hint { margin: 4px 0 0; }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <div class="tandoor-header">
+        <img src="../icons/icon32.png" alt="" />
+        <h1>Einstellungen</h1>
+      </div>
+      <div class="tandoor-body">
+        <div class="tandoor-card">
+          <label for="tandoorHost">Tandoor-Instanz-URL</label>
+          <input id="tandoorHost" type="url" placeholder="https://tandoor.meine-domain.de" />
+          <p class="hint">Die Adresse, unter der du dein Tandoor im Browser aufrufst.</p>
+
+          <label for="tandoorToken">API-Token</label>
+          <input id="tandoorToken" type="password" placeholder="tda_..." />
+          <p class="hint">Erstellbar unter [Tandoor-URL]/api/access-token/ mit Scope "read".</p>
+
+          <label for="backendUrl">Backend-Server-URL (Docker-Container)</label>
+          <input id="backendUrl" type="url" placeholder="http://192.168.1.50:8124" />
+          <p class="hint">Adresse deines Tandoor2typst-Docker-Containers (z.B. auf dem NAS).</p>
+
+          <button class="tandoor-btn" id="save">💾 Speichern</button>
+          <div id="status"></div>
+        </div>
+      </div>
+    </div>
+
+    <script src="settings.js"></script>
+    <script src="options.js"></script>
+  </body>
+</html>
