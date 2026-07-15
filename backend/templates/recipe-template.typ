@@ -116,6 +116,21 @@
   }
 }
 
+// Renders each keyword/tag as a small rounded, semi-transparent chip. Plain
+// boxes (not a grid/stack) so they wrap onto further lines like inline text
+// when there are more tags than fit on one line.
+#let display_keywords(keywords) = {
+  if keywords.len() == 0 { return [] }
+  for kw in keywords {
+    box(
+      fill: primary_colour.transparentize(50%),
+      inset: (x: 6pt, y: 3pt),
+      radius: 8pt,
+    )[#text(size: 8pt, fill: text_colour, font: heading_font)[#kw.name]]
+    h(4pt)
+  }
+}
+
 #let recipe(
   title: "",
   description: "",
@@ -126,6 +141,7 @@
   waiting_time: "",
   ingredients: (),
   steps: (),
+  keywords: (),
   source_url: "",
   source_domain: "",
   page_number: false,
@@ -181,7 +197,9 @@
     columns: (title_column_width, 150pt),
     [
       #heading(level: 1)[#title]
-      #v(0pt)
+      #v(4pt)
+      #display_keywords(keywords)
+      #v(4pt)
       #emph(description)
     ],
     [
@@ -262,6 +280,7 @@
   let waiting_time = if recipe_data.waiting_time > 0 { str(recipe_data.waiting_time) + " min" } else { "" }
   let source_url = if recipe_data.at("source_url", default: none) not in (none, "") { recipe_data.source_url } else { "" }
   let source_domain = if recipe_data.at("source_domain", default: none) not in (none, "") { recipe_data.source_domain } else { "" }
+  let keywords = recipe_data.at("keywords", default: ())
 
   recipe(
     title: recipe_data.name,
@@ -272,6 +291,7 @@
     waiting_time: waiting_time,
     ingredients: all_ingredients,
     steps: recipe_data.steps,
+    keywords: keywords,
     source_url: source_url,
     source_domain: source_domain,
     image_path: image_path,
