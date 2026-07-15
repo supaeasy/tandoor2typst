@@ -81,8 +81,15 @@ def write_recipe_files(
     return RecipeFiles(json_filename, image_arg, id_prefix=f"r{index}")
 
 
-def write_main(work_dir: str, entries: list[str], filename: str = "main.typ") -> None:
+def write_main(work_dir: str, entries: list[str], filename: str = "main.typ", include_toc: bool = False) -> None:
     ensure_template_copied(work_dir)
-    body = '#import "template.typ": recipe_from_json\n' + "#pagebreak()\n".join(entries)
+    if include_toc:
+        header = (
+            '#import "template.typ": recipe_from_json, toc_page\n'
+            "#toc_page()\n#pagebreak()\n#counter(page).update(1)\n"
+        )
+    else:
+        header = '#import "template.typ": recipe_from_json\n'
+    body = header + "#pagebreak()\n".join(entries)
     with open(os.path.join(work_dir, filename), "w", encoding="utf-8") as f:
         f.write(body)

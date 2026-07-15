@@ -136,6 +136,13 @@
   )
   set text(10pt, font: body_font)
 
+  // A real heading (rather than plain styled text) so the collected
+  // cookbook's table of contents (see toc_page below) can find recipe
+  // titles via #outline(target: heading.where(level: 1)).
+  show heading.where(level: 1): it => text(
+    fill: primary_colour, font: title_font, size: 24pt, weight: 200, it.body,
+  )
+
   show heading.where(level: 2): it => text(
     fill: primary_colour,
     font: heading_font,
@@ -155,7 +162,7 @@
   grid(
     columns: (330pt, 150pt),
     [
-      #text(fill: primary_colour, font: title_font, size: 24pt, weight: 200, upper(title))
+      #heading(level: 1)[#upper(title)]
       #v(0pt)
       #emph(description)
     ],
@@ -202,6 +209,27 @@
       *Benötigtes Geschirr:* #servings_text
     ]
   }
+}
+
+// Cover/table-of-contents page for the collected "all recipes" book. Only
+// recipe titles (level-1 headings) show up, not the Zutaten/Zubereitung
+// sub-headings inside each recipe (those are level 2).
+#let toc_page() = {
+  set page(
+    margin: (x: 54pt, y: 52pt),
+    fill: rgb("ede8d0"),
+    numbering: none,
+  )
+  align(center + horizon)[
+    #text(fill: primary_colour, font: title_font, size: 32pt, weight: 200)[REZEPTSAMMLUNG]
+    #v(2em)
+    #align(left)[
+      #outline(
+        title: text(fill: primary_colour, font: heading_font, size: 16pt, weight: 300)[Inhaltsverzeichnis],
+        target: heading.where(level: 1),
+      )
+    ]
+  ]
 }
 
 #let recipe_from_json(recipe_data, image_path: none, page_number: false, id_prefix: "r", steps_font_size_pt: 11pt) = {

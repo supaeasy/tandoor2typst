@@ -132,7 +132,7 @@ def _run_all_recipes_job(job_id: str, host: str, token: str) -> None:
             font_size = _fit_steps_font_size(work_dir, recipe_files, index)
             entries.append(recipe_files.call(page_number=True, steps_font_size_pt=font_size))
 
-        render.write_main(work_dir, entries)
+        render.write_main(work_dir, entries, include_toc=True)
 
         logger.info("Job %s: compiling %d recipes", job_id, len(recipe_ids))
         _set_job(job_id, status="compiling")
