@@ -17,6 +17,10 @@
 
 #let image-height = 15em
 
+// Must match the title column's width in the header grid below (recipe()) -
+// used to shrink the title font until it fits on one line.
+#let title_column_width = 330pt
+
 // A decimal amount like 0.25 arrives pre-split by the backend (see
 // _amount_to_fraction_parts in app/render.py) into whole/num/den parts, so it
 // can be rendered as a small nicefrac-style fraction instead of a raw decimal.
@@ -138,10 +142,24 @@
 
   // A real heading (rather than plain styled text) so the collected
   // cookbook's table of contents (see toc_page below) can find recipe
-  // titles via #outline(target: heading.where(level: 1)).
-  show heading.where(level: 1): it => text(
-    fill: primary_colour, font: title_font, size: 24pt, weight: 200, it.body,
-  )
+  // titles via #outline(target: heading.where(level: 1)). The uppercasing
+  // happens only here (not in the heading's actual body), so the outline
+  // shows the title in normal case - outline entries use the heading's raw
+  // body, unaffected by this show rule.
+  //
+  // Long titles are shrunk until they fit on one line, since the title
+  // column has a fixed width and can't wrap onto a second line gracefully.
+  show heading.where(level: 1): it => context {
+    let shown = upper(it.body)
+    let size = 24pt
+    let min_size = 13pt
+    while size > min_size {
+      let w = measure(text(font: title_font, size: size, weight: 200, shown)).width
+      if w <= title_column_width { break }
+      size -= 0.5pt
+    }
+    text(fill: primary_colour, font: title_font, size: size, weight: 200, shown)
+  }
 
   show heading.where(level: 2): it => text(
     fill: primary_colour,
@@ -160,9 +178,9 @@
   )
 
   grid(
-    columns: (330pt, 150pt),
+    columns: (title_column_width, 150pt),
     [
-      #heading(level: 1)[#upper(title)]
+      #heading(level: 1)[#title]
       #v(0pt)
       #emph(description)
     ],
