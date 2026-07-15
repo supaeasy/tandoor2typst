@@ -192,22 +192,15 @@
   v(30pt)
 
   if servings_text != "" {
-    // Uneven corner radii + a soft tinted fill give this a loosely "painted"
-    // feel rather than a hard technical box. Nudged down a little so it
-    // sits roughly alongside the footnotes instead of stacked above them -
-    // Typst doesn't expose the footnote area's exact position (an earlier
-    // attempt to compute this precisely overshot badly), so this is a small,
-    // bounded offset rather than a calculated one.
-    place(bottom + right, dy: 14pt, box(
-      fill: primary_colour.lighten(88%),
-      stroke: 1pt + primary_colour,
-      inset: (x: 10pt, y: 7pt),
-      radius: (top-left: 9pt, top-right: 3pt, bottom-right: 11pt, bottom-left: 5pt),
-      width: 190pt,
-    )[
-      #set text(size: 8.5pt, fill: text_colour, font: body_font)
+    // Plain (non-placed) flow content always renders directly above the
+    // footnote separator, since Typst appends the footnote area after all
+    // normal flow content on the page - no position estimation needed, unlike
+    // the earlier place()-based attempts that tried to guess where the
+    // footnote area starts.
+    align(right)[
+      #set text(size: 9pt, fill: text_colour, font: body_font)
       *Benötigtes Geschirr:* #servings_text
-    ])
+    ]
   }
 }
 
