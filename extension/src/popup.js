@@ -2,11 +2,12 @@ const STATE_KEY = "tandoor2typst_job_state";
 const IDLE_STATUSES = new Set(["idle", "finished", "error", undefined]);
 
 function renderState(state) {
-  const button = document.getElementById("downloadAll");
   const status = document.getElementById("status");
   status.textContent = state?.text || "";
   status.className = state?.status === "error" ? "error" : state?.status === "finished" ? "success" : "";
-  button.disabled = !IDLE_STATUSES.has(state?.status);
+  const disabled = !IDLE_STATUSES.has(state?.status);
+  document.getElementById("downloadAll").disabled = disabled;
+  document.getElementById("downloadAllPrint").disabled = disabled;
 }
 
 async function init() {
@@ -31,13 +32,16 @@ async function init() {
     }
   });
 
-  document.getElementById("downloadAll").addEventListener("click", async () => {
+  async function startJob(printMode) {
     renderState({ status: "starting", text: "Starte …" });
-    const response = await chrome.runtime.sendMessage({ type: "start-all-recipes", settings });
+    const response = await chrome.runtime.sendMessage({ type: "start-all-recipes", settings, printMode });
     if (!response?.started) {
       renderState({ status: "error", text: "Es läuft bereits ein Sammel-PDF-Job." });
     }
-  });
+  }
+
+  document.getElementById("downloadAll").addEventListener("click", () => startJob(false));
+  document.getElementById("downloadAllPrint").addEventListener("click", () => startJob(true));
 }
 
 init();

@@ -46,13 +46,14 @@ class RecipeFiles:
         self.image_arg = image_arg
         self.id_prefix = id_prefix
 
-    def call(self, page_number: bool, steps_font_size_pt: float) -> str:
+    def call(self, page_number: bool, steps_font_size_pt: float, print_mode: bool = False) -> str:
         page_number_arg = "true" if page_number else "false"
+        print_mode_arg = "true" if print_mode else "false"
         return (
             f"#recipe_from_json(json({_typst_string_literal(self.json_filename)}), "
             f"image_path: {self.image_arg}, page_number: {page_number_arg}, "
             f"id_prefix: {_typst_string_literal(self.id_prefix)}, "
-            f"steps_font_size_pt: {steps_font_size_pt}pt)\n"
+            f"steps_font_size_pt: {steps_font_size_pt}pt, print_mode: {print_mode_arg})\n"
         )
 
 
@@ -81,12 +82,19 @@ def write_recipe_files(
     return RecipeFiles(json_filename, image_arg, id_prefix=f"r{index}")
 
 
-def write_main(work_dir: str, entries: list[str], filename: str = "main.typ", include_toc: bool = False) -> None:
+def write_main(
+    work_dir: str,
+    entries: list[str],
+    filename: str = "main.typ",
+    include_toc: bool = False,
+    print_mode: bool = False,
+) -> None:
     ensure_template_copied(work_dir)
     if include_toc:
+        print_mode_arg = "true" if print_mode else "false"
         header = (
             '#import "template.typ": recipe_from_json, toc_page\n'
-            "#toc_page()\n#pagebreak()\n#counter(page).update(1)\n"
+            f"#toc_page(print_mode: {print_mode_arg})\n#pagebreak()\n#counter(page).update(1)\n"
         )
     else:
         header = '#import "template.typ": recipe_from_json\n'

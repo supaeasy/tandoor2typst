@@ -52,6 +52,9 @@ breaks between recipes. For large recipe collections this can take a while (fetc
 single compile pass); progress is shown live in the popup, and the job keeps running in the
 background even if you close the popup - the download starts automatically once it's done.
 
+There's also a "🖨️ All recipes as PDF (print version)" button, identical except without the page
+background color - handy if you print on colored paper.
+
 ## Notes
 
 - The backend is intentionally stateless (no stored token) and meant for use on your own LAN (CORS is
@@ -124,6 +127,9 @@ Seitenumbrüchen zwischen den Rezepten. Bei vielen Rezepten kann das eine Weile 
 geladen, danach einmalig kompiliert); der Fortschritt wird live im Popup angezeigt, und der Job läuft
 im Hintergrund weiter, auch wenn du das Popup schließt - der Download startet automatisch, sobald das
 PDF fertig ist.
+
+Daneben gibt's „🖨️ Alle Rezepte als PDF (Druckversion)" - identisch, nur ohne Hintergrundfarbe der Seite,
+praktisch zum Drucken auf farbigem Papier.
 
 ## Hinweise
 

@@ -147,12 +147,13 @@
   page_number: false,
   id_prefix: "r",
   steps_font_size_pt: 11pt,
+  print_mode: false,
 ) = {
   set page(
     margin: (x: 54pt, y: 52pt),
     numbering: if page_number { "1" } else { none },
     number-align: right,
-    fill: rgb("ede8d0"),
+    fill: if print_mode { none } else { rgb("ede8d0") },
   )
   set text(10pt, font: body_font)
 
@@ -256,10 +257,10 @@
 // Cover/table-of-contents page for the collected "all recipes" book. Only
 // recipe titles (level-1 headings) show up, not the Zutaten/Zubereitung
 // sub-headings inside each recipe (those are level 2).
-#let toc_page() = {
+#let toc_page(print_mode: false) = {
   set page(
     margin: (x: 54pt, y: 52pt),
-    fill: rgb("ede8d0"),
+    fill: if print_mode { none } else { rgb("ede8d0") },
     numbering: none,
   )
   align(center + horizon)[
@@ -274,7 +275,7 @@
   ]
 }
 
-#let recipe_from_json(recipe_data, image_path: none, page_number: false, id_prefix: "r", steps_font_size_pt: 11pt) = {
+#let recipe_from_json(recipe_data, image_path: none, page_number: false, id_prefix: "r", steps_font_size_pt: 11pt, print_mode: false) = {
   let all_ingredients = ()
   for step in recipe_data.steps {
     for ingredient in step.ingredients {
@@ -304,5 +305,6 @@
     page_number: page_number,
     id_prefix: id_prefix,
     steps_font_size_pt: steps_font_size_pt,
+    print_mode: print_mode,
   )
 }

@@ -41,12 +41,12 @@ async function requestRecipePdf(backendUrl, host, token, recipeId) {
   return await response.blob();
 }
 
-async function startAllRecipesJob(backendUrl, host, token) {
+async function startAllRecipesJob(backendUrl, host, token, printMode) {
   const base = backendUrl.replace(/\/$/, "");
   const response = await fetch(`${base}/api/recipes/all/start`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ host, token }),
+    body: JSON.stringify({ host, token, print_mode: !!printMode }),
   });
   if (!response.ok) {
     const detail = await response.text();

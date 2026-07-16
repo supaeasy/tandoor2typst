@@ -109,7 +109,7 @@ def _set_job(job_id: str, **fields) -> None:
         JOBS.setdefault(job_id, {}).update(fields)
 
 
-def _run_all_recipes_job(job_id: str, host: str, token: str) -> None:
+def _run_all_recipes_job(job_id: str, host: str, token: str, print_mode: bool = False) -> None:
     try:
         _set_job(job_id, status="fetching_list", current=0, total=0)
         logger.info("Job %s: fetching recipe list from %s", job_id, host)
@@ -130,9 +130,9 @@ def _run_all_recipes_job(job_id: str, host: str, token: str) -> None:
             image = client.download_image(recipe)
             recipe_files = render.write_recipe_files(work_dir, recipe, index, image)
             font_size = _fit_steps_font_size(work_dir, recipe_files, index)
-            entries.append(recipe_files.call(page_number=True, steps_font_size_pt=font_size))
+            entries.append(recipe_files.call(page_number=True, steps_font_size_pt=font_size, print_mode=print_mode))
 
-        render.write_main(work_dir, entries, include_toc=True)
+        render.write_main(work_dir, entries, include_toc=True, print_mode=print_mode)
 
         logger.info("Job %s: compiling %d recipes", job_id, len(recipe_ids))
         _set_job(job_id, status="compiling")
@@ -151,12 +151,13 @@ def _run_all_recipes_job(job_id: str, host: str, token: str) -> None:
 def start_all_recipes_job(payload: dict = Body(...)):
     host = payload.get("host")
     token = payload.get("token")
+    print_mode = bool(payload.get("print_mode", False))
     if not host or not token:
         raise HTTPException(status_code=400, detail="host and token are required.")
 
     job_id = uuid.uuid4().hex
     _set_job(job_id, status="queued", current=0, total=0)
-    thread = threading.Thread(target=_run_all_recipes_job, args=(job_id, host, token), daemon=True)
+    thread = threading.Thread(target=_run_all_recipes_job, args=(job_id, host, token, print_mode), daemon=True)
     thread.start()
     return {"job_id": job_id}
 

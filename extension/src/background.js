@@ -24,10 +24,15 @@ function blobToDataUrl(blob) {
   });
 }
 
-async function runAllRecipesJob(settings) {
+async function runAllRecipesJob(settings, printMode) {
   await setState({ status: "starting", text: "Starte …" });
   try {
-    const jobId = await startAllRecipesJob(settings.backendUrl, settings.tandoorHost, settings.tandoorToken);
+    const jobId = await startAllRecipesJob(
+      settings.backendUrl,
+      settings.tandoorHost,
+      settings.tandoorToken,
+      printMode
+    );
     for (;;) {
       await new Promise((resolve) => setTimeout(resolve, 1500));
       const job = await getJobStatus(settings.backendUrl, jobId);
@@ -36,7 +41,8 @@ async function runAllRecipesJob(settings) {
       if (job.status === "done") {
         const blob = await downloadJobPdf(settings.backendUrl, jobId);
         const dataUrl = await blobToDataUrl(blob);
-        await chrome.downloads.download({ url: dataUrl, filename: "Rezeptsammlung.pdf", saveAs: false });
+        const filename = printMode ? "Rezeptsammlung-Druck.pdf" : "Rezeptsammlung.pdf";
+        await chrome.downloads.download({ url: dataUrl, filename, saveAs: false });
         await setState({ status: "finished", text: "Fertig! PDF wurde heruntergeladen." });
         return;
       }
@@ -58,7 +64,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         sendResponse({ started: false, reason: "already-running" });
         return;
       }
-      runAllRecipesJob(message.settings);
+      runAllRecipesJob(message.settings, !!message.printMode);
       sendResponse({ started: true });
     });
     return true;
