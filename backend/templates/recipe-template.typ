@@ -156,6 +156,12 @@
   )
   set text(10pt, font: body_font)
 
+  // Each recipe always fits on a single page (steps_font_size_pt is chosen to
+  // guarantee that), so resetting the footnote counter here also resets it
+  // per page - otherwise footnote numbers kept climbing across the whole
+  // collected book instead of restarting at 1 for each recipe.
+  counter(footnote).update(0)
+
   // A real heading (rather than plain styled text) so the collected
   // cookbook's table of contents (see toc_page below) can find recipe
   // titles via #outline(target: heading.where(level: 1)). The uppercasing
