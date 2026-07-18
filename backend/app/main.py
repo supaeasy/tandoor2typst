@@ -6,6 +6,7 @@ import sys
 import tempfile
 import threading
 import uuid
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from urllib.parse import quote
 
 from fastapi import Body, FastAPI, HTTPException
@@ -42,6 +43,10 @@ def _content_disposition(filename: str) -> str:
 
 DEFAULT_STEPS_FONT_SIZE = 11
 MIN_STEPS_FONT_SIZE = 8
+# Recipes are fetched and test-compiled concurrently in the collected-book job
+# (each is independent I/O + a typst subprocess) - keep this modest so a
+# small NAS isn't overwhelmed with parallel typst processes.
+RECIPE_WORKERS = int(os.environ.get("RECIPE_WORKERS", "4"))
 
 
 def _fit_steps_font_size(work_dir: str, recipe_files: render.RecipeFiles, test_id) -> int:
@@ -109,6 +114,18 @@ def _set_job(job_id: str, **fields) -> None:
         JOBS.setdefault(job_id, {}).update(fields)
 
 
+def _process_recipe(work_dir: str, client: TandoorClient, index: int, recipe_id: int, print_mode: bool) -> str:
+    """Fetches one recipe + its image and finds its fitting font size. Runs in
+    a worker thread - safe because TandoorClient is stateless per-call and
+    every file this writes (recipe_{index}.json, image_{index}.*,
+    sizetest_{index}.*) is uniquely named per recipe index."""
+    recipe = client.fetch_recipe(recipe_id)
+    image = client.download_image(recipe)
+    recipe_files = render.write_recipe_files(work_dir, recipe, index, image)
+    font_size = _fit_steps_font_size(work_dir, recipe_files, index)
+    return recipe_files.call(page_number=True, steps_font_size_pt=font_size, print_mode=print_mode)
+
+
 def _run_all_recipes_job(job_id: str, host: str, token: str, print_mode: bool = False) -> None:
     try:
         _set_job(job_id, status="fetching_list", current=0, total=0)
@@ -122,15 +139,19 @@ def _run_all_recipes_job(job_id: str, host: str, token: str, print_mode: bool = 
         _set_job(job_id, status="fetching", total=len(recipe_ids))
 
         work_dir = tempfile.mkdtemp(prefix="tandoor_book_")
-        entries = []
-        for index, recipe_id in enumerate(recipe_ids):
-            logger.info("Job %s: fetching recipe %d/%d (id=%s)", job_id, index + 1, len(recipe_ids), recipe_id)
-            _set_job(job_id, current=index + 1)
-            recipe = client.fetch_recipe(recipe_id)
-            image = client.download_image(recipe)
-            recipe_files = render.write_recipe_files(work_dir, recipe, index, image)
-            font_size = _fit_steps_font_size(work_dir, recipe_files, index)
-            entries.append(recipe_files.call(page_number=True, steps_font_size_pt=font_size, print_mode=print_mode))
+        entries: list[str | None] = [None] * len(recipe_ids)
+        completed = 0
+        with ThreadPoolExecutor(max_workers=RECIPE_WORKERS) as executor:
+            futures = {
+                executor.submit(_process_recipe, work_dir, client, index, recipe_id, print_mode): index
+                for index, recipe_id in enumerate(recipe_ids)
+            }
+            for future in as_completed(futures):
+                index = futures[future]
+                entries[index] = future.result()
+                completed += 1
+                logger.info("Job %s: recipe %d/%d done (id=%s)", job_id, completed, len(recipe_ids), recipe_ids[index])
+                _set_job(job_id, current=completed)
 
         render.write_main(work_dir, entries, include_toc=True, print_mode=print_mode)
 
