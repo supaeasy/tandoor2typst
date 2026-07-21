@@ -288,24 +288,35 @@
     // rather than always defaulting to one fixed size regardless of length.
     #set text(size: entries_font_size_pt, font: body_font, fill: text_colour)
     #set par(spacing: entries_font_size_pt * 0.5)
-    // Appends each recipe's tags after the default entry (title + dot fill +
+    // Inserts each recipe's tags directly after its title (not after the
     // page number) - looked up via the <recipe-tags> metadata placed right
     // after that recipe's heading (see recipe() above), matched by document
-    // position rather than baked into the heading itself. Stub headings used
-    // for testing (see render.write_toc_test) have no such metadata, so this
-    // silently shows nothing for them.
+    // position rather than baked into the heading itself. Rebuilt from
+    // it.body()/it.page() (rather than the bundled it.inner()) so the order
+    // is title, tags, dot fill, page number - the page number stays at the
+    // far right. Tag size always tracks entries_font_size_pt - 3pt, so it
+    // scales automatically with whatever size the auto-fit (or a manual
+    // override) picks. Stub headings used for TOC size-testing have no such
+    // metadata, so this silently shows nothing for them.
     #show outline.entry: it => context {
       let tags = query(selector(<recipe-tags>).after(it.element.location()))
       let tag_text = if tags.len() > 0 and tags.first().value.len() > 0 {
-        text(size: 0.8em, fill: text_colour, style: "italic")[ (#tags.first().value.join(", "))]
+        text(size: entries_font_size_pt - 3pt, fill: text_colour, style: "italic")[ (#tags.first().value.join(", "))]
       } else {
         []
       }
-      link(it.element.location(), it.indented(it.prefix(), it.inner() + tag_text))
+      link(it.element.location(), it.indented(it.prefix(), {
+        it.body()
+        tag_text
+        box(width: 1fr, repeat[.])
+        h(4pt)
+        it.page()
+      }))
     }
     #outline(
       title: text(fill: primary_colour, font: heading_font, size: 16pt, weight: 300)[Inhaltsverzeichnis],
       target: heading.where(level: 1),
+      fill: repeat[.],
     )
   ]
 }
