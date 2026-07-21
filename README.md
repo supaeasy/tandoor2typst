@@ -19,6 +19,15 @@ running Tandoor instance through its public API to turn your own recipes into pr
 
 The recipe layout is adapted from [a Typst template by Adrian Vollmer](https://gist.github.com/AdrianVollmer/07edab2b1fba2747fbf45291ab73d81e).
 
+## Screenshots
+
+The PDF button on a recipe page, and the extension popup:
+
+<img src="docs/recipe-page-button.png" alt="PDF button on a Tandoor recipe page" width="700" />
+<img src="docs/popup.png" alt="Extension popup" width="300" />
+
+Example single-recipe PDF: [Rinderrouladen mit Spätzle](docs/example-Rinderrouladen-mit-Spaetzle.pdf).
+
 ## 1. Start the backend container (NAS / Portainer)
 
 1. Copy the `backend/` folder to your NAS (or point Portainer directly at this git repo).
@@ -93,6 +102,15 @@ autorisiert - es kommuniziert lediglich über dessen öffentliche API mit einer 
 um eigene Rezepte in druckbare PDFs zu verwandeln.
 
 Das Rezept-Layout basiert auf [einer Typst-Vorlage von Adrian Vollmer](https://gist.github.com/AdrianVollmer/07edab2b1fba2747fbf45291ab73d81e).
+
+## Screenshots
+
+Der PDF-Button auf einer Rezeptseite, und das Erweiterungs-Popup:
+
+<img src="docs/recipe-page-button.png" alt="PDF-Button auf einer Tandoor-Rezeptseite" width="700" />
+<img src="docs/popup.png" alt="Popup der Erweiterung" width="300" />
+
+Beispiel eines Einzelrezept-PDFs: [Rinderrouladen mit Spätzle](docs/example-Rinderrouladen-mit-Spaetzle.pdf).
 
 ## 1. Backend-Container starten (NAS / Portainer)
 
