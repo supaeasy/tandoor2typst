@@ -1,6 +1,7 @@
 import json
 import os
 import shutil
+import threading
 from fractions import Fraction
 
 TEMPLATE_SRC = os.path.join(os.path.dirname(__file__), "..", "templates", "recipe-template.typ")
@@ -12,7 +13,19 @@ def _typst_string_literal(value: str) -> str:
 
 
 def ensure_template_copied(work_dir: str) -> None:
-    shutil.copyfile(TEMPLATE_SRC, os.path.join(work_dir, "template.typ"))
+    """Idempotent and safe to call from several threads sharing the same
+    work_dir at once (the collected-book job processes recipes concurrently,
+    and each one calls this via write_main/write_toc_test): skips the copy if
+    the file is already there, and even when several threads race past that
+    check simultaneously, writes to a temp file first and atomically renames
+    it into place - so a reader can never see a half-written template.typ
+    (which surfaced as "unresolved import" errors under concurrency)."""
+    dest = os.path.join(work_dir, "template.typ")
+    if os.path.exists(dest):
+        return
+    tmp = dest + f".tmp-{os.getpid()}-{threading.get_ident()}"
+    shutil.copyfile(TEMPLATE_SRC, tmp)
+    os.replace(tmp, dest)
 
 
 def _amount_to_fraction_parts(value) -> dict:
