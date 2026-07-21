@@ -1,5 +1,6 @@
 import logging
 import os
+import random
 import re
 import shutil
 import sys
@@ -118,6 +119,45 @@ def _fit_toc_font_size(
     return best_size, best_pages
 
 
+_SIM_PREFIXES = [
+    "Klassische", "Schnelle", "Cremige", "Herzhafte", "Bunte", "Würzige", "Feine",
+    "Rustikale", "Sommerliche", "Winterliche", "Knusprige", "Hausgemachte", "",
+    "", "", "",  # weighted towards no prefix, like real recipe names usually are
+]
+_SIM_INGREDIENTS = [
+    "Kartoffel", "Tomaten", "Pilz", "Poulet", "Rind", "Lachs", "Kürbis", "Spinat",
+    "Linsen", "Käse", "Schoko", "Zitronen", "Ingwer", "Randen", "Zucchetti", "Peperoni",
+    "Randensalat", "Quark", "Schafkäse", "Sellerie", "Lauch", "Karotten", "Aprikosen",
+]
+_SIM_DISHES = [
+    "Suppe", "Auflauf", "Salat", "Pfanne", "Braten", "Gratin", "Eintopf", "Kuchen",
+    "Torte", "Ragout", "Risotto", "Curry", "Wähe", "Nudeln", "Geschnetzeltes",
+    "Röllchen", "Plätzchen", "Muffins", "Strudel", "Bowl",
+]
+
+
+def _simulate_titles(count: int, seed: int = 42) -> list[str]:
+    """Generates plausible, length-varied recipe titles (short like "Pancakes"
+    up to longer combos like real ones such as "Nudelsalat á la Omi
+    Preissler") for testing the TOC auto-fit without needing a real Tandoor
+    instance - lets the fit be validated across different collection sizes
+    on demand. A fixed seed keeps repeated tests at the same count
+    comparable."""
+    rng = random.Random(seed)
+    titles = []
+    for i in range(count):
+        parts = []
+        prefix = rng.choice(_SIM_PREFIXES)
+        if prefix:
+            parts.append(prefix)
+        parts.append(rng.choice(_SIM_INGREDIENTS))
+        if rng.random() < 0.35:
+            parts.append("mit " + rng.choice(_SIM_INGREDIENTS))
+        parts.append(rng.choice(_SIM_DISHES))
+        titles.append(f"{' '.join(parts)} {i + 1}")
+    return titles
+
+
 @app.get("/healthz")
 def healthz():
     return {"status": "ok"}
@@ -126,24 +166,32 @@ def healthz():
 @app.post("/api/toc/preview")
 def preview_toc(payload: dict = Body(...)):
     """Fast, synchronous endpoint for testing the table-of-contents layout
-    alone (no recipe images/steps, no font-fit-per-recipe) - only fetches
-    recipe titles. By default runs the same auto-fit as the real
-    collected-book job; pass "font_size_pt" in the payload to render at an
-    exact size instead (skips the fit loop entirely - useful for quickly
-    hand-testing what size/page-count you actually want). Returns only the
-    real cover+TOC pages - the bare heading stand-ins #outline() needs to
-    find titles are compiled but trimmed off before returning."""
-    host = payload.get("host")
-    token = payload.get("token")
+    alone (no recipe images/steps, no font-fit-per-recipe). By default fetches
+    real recipe titles (needs host+token); pass "simulate_count" instead to
+    generate that many plausible fake titles and skip Tandoor entirely - lets
+    the auto-fit be validated across arbitrary collection sizes without
+    needing real data for each one. Also by default runs the same auto-fit as
+    the real collected-book job; pass "font_size_pt" to render at an exact
+    size instead (skips the fit loop - useful for quickly hand-testing what
+    size/page-count you actually want). Returns only the real cover+TOC pages
+    - the bare heading stand-ins #outline() needs to find titles are compiled
+    but trimmed off before returning."""
     manual_size = payload.get("font_size_pt")
-    if not host or not token:
-        raise HTTPException(status_code=400, detail="host and token are required.")
+    simulate_count = payload.get("simulate_count")
 
-    logger.info("TOC preview: fetching recipe titles from %s", host)
-    client = TandoorClient(host, token)
-    titles = client.fetch_all_recipe_titles()
-    if not titles:
-        raise HTTPException(status_code=502, detail="No recipes found on this Tandoor instance.")
+    if simulate_count:
+        titles = _simulate_titles(int(simulate_count))
+        logger.info("TOC preview: simulating %d titles", len(titles))
+    else:
+        host = payload.get("host")
+        token = payload.get("token")
+        if not host or not token:
+            raise HTTPException(status_code=400, detail="host and token are required.")
+        logger.info("TOC preview: fetching recipe titles from %s", host)
+        client = TandoorClient(host, token)
+        titles = client.fetch_all_recipe_titles()
+        if not titles:
+            raise HTTPException(status_code=502, detail="No recipes found on this Tandoor instance.")
 
     work_dir = tempfile.mkdtemp(prefix="tandoor_toc_")
     if manual_size is not None:

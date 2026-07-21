@@ -26,9 +26,11 @@
           <p class="hint">Läuft im Hintergrund weiter, auch wenn du dieses Fenster schließt.</p>
           <label for="tocFontSize" style="margin-top:12px;">Schriftgrösse Verzeichnis (optional, pt)</label>
           <input id="tocFontSize" type="number" step="0.5" min="6" max="30" placeholder="leer = automatisch" />
+          <label for="tocSimulateCount">Anzahl Rezepte simulieren (optional)</label>
+          <input id="tocSimulateCount" type="number" step="1" min="1" max="2000" placeholder="leer = echte Rezepte" />
           <button class="tandoor-btn" id="previewToc">🔍 Inhaltsverzeichnis testen</button>
           <div id="tocStatus"></div>
-          <p class="hint">Schneller Test nur für das Inhaltsverzeichnis (nur Titel, keine Rezeptinhalte). Leer lassen für automatische Anpassung, oder eine feste Grösse zum Ausprobieren eingeben.</p>
+          <p class="hint">Schneller Test nur für das Inhaltsverzeichnis (nur Titel, keine Rezeptinhalte). Leer lassen für automatische Anpassung/echte Rezepte, oder Werte zum Ausprobieren eingeben - z.B. um die Anpassung mit einer simulierten Anzahl Rezepte zu prüfen.</p>
         </div>
         <p class="hint" style="margin-top:12px;"><a id="openOptions2">Einstellungen ändern</a></p>
       </div>
