@@ -56,11 +56,13 @@ async function startAllRecipesJob(backendUrl, host, token, printMode) {
   return jobId;
 }
 
-async function previewToc(backendUrl, host, token) {
+async function previewToc(backendUrl, host, token, fontSizePt) {
+  const body = { host, token };
+  if (fontSizePt) body.font_size_pt = fontSizePt;
   const response = await fetch(`${backendUrl.replace(/\/$/, "")}/api/toc/preview`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ host, token }),
+    body: JSON.stringify(body),
   });
   if (!response.ok) {
     const detail = await response.text();

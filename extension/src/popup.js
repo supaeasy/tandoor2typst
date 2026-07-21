@@ -45,12 +45,14 @@ async function init() {
 
   const previewButton = document.getElementById("previewToc");
   const tocStatus = document.getElementById("tocStatus");
+  const tocFontSize = document.getElementById("tocFontSize");
   previewButton.addEventListener("click", async () => {
     previewButton.disabled = true;
     tocStatus.className = "";
     tocStatus.textContent = "Lade Rezeptliste und teste Inhaltsverzeichnis …";
     try {
-      const blob = await previewToc(settings.backendUrl, settings.tandoorHost, settings.tandoorToken);
+      const fontSizePt = tocFontSize.value ? Number(tocFontSize.value) : undefined;
+      const blob = await previewToc(settings.backendUrl, settings.tandoorHost, settings.tandoorToken, fontSizePt);
       triggerBlobDownload(blob, "Inhaltsverzeichnis-Test.pdf");
       tocStatus.className = "success";
       tocStatus.textContent = "Fertig, PDF wurde heruntergeladen.";
