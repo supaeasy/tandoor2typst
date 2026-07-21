@@ -80,27 +80,41 @@ def _fit_toc_font_size(
     possible instead of shrinking to search for fewer pages (which doesn't
     help when the default already leaves the last page half-empty). Uses bare
     stub headings (see render.write_toc_test) rather than compiling every
-    recipe's full content just to count the TOC's own pages. Returns
-    (font_size_pt, page_count_at_that_size)."""
+    recipe's full content just to count the TOC's own pages - their own page
+    count is measured once (render.write_stub_only) and subtracted back out,
+    since it's otherwise baked into every measurement here. Returns
+    (font_size_pt, toc_page_count_at_that_size); the file left behind at
+    test_typ/test_pdf is re-rendered at the winning size before returning, so
+    it always matches what's reported (earlier versions left whatever size
+    was tested last - typically the rejected, oversized one - on disk)."""
+    render.write_stub_only(work_dir, titles, "stubonly.typ")
+    stub_pages = compile_typ(work_dir, "stubonly.typ", "stubonly.pdf", timeout=120)
+    logger.info("TOC: %d titles -> stub headings alone need %d page(s)", len(titles), stub_pages)
 
-    def pages_at(size: float) -> int:
+    def toc_pages_at(size: float) -> int:
         render.write_toc_test(work_dir, titles, size, test_typ)
-        pages = compile_typ(work_dir, test_typ, test_pdf, timeout=120)
+        total_pages = compile_typ(work_dir, test_typ, test_pdf, timeout=120)
+        pages = total_pages - stub_pages
         logger.info("TOC: entries_font_size=%.1fpt -> %d page(s)", size, pages)
         return pages
 
-    default_pages = pages_at(TOC_DEFAULT_FONT_SIZE)
+    default_pages = toc_pages_at(TOC_DEFAULT_FONT_SIZE)
     best_size = TOC_DEFAULT_FONT_SIZE
     best_pages = default_pages
     size = TOC_DEFAULT_FONT_SIZE
     max_size = TOC_DEFAULT_FONT_SIZE + TOC_MAX_GROWTH
     while size + TOC_FONT_STEP <= max_size:
         size += TOC_FONT_STEP
-        pages = pages_at(size)
+        pages = toc_pages_at(size)
         if pages > default_pages:
             break
         best_size = size
         best_pages = pages
+
+    # Re-render at the winning size so the file on disk actually matches it -
+    # the loop's last iteration is often the rejected, oversized attempt.
+    render.write_toc_test(work_dir, titles, best_size, test_typ)
+    compile_typ(work_dir, test_typ, test_pdf, timeout=120)
     return best_size, best_pages
 
 
@@ -134,8 +148,10 @@ def preview_toc(payload: dict = Body(...)):
     work_dir = tempfile.mkdtemp(prefix="tandoor_toc_")
     if manual_size is not None:
         toc_font_size = float(manual_size)
+        render.write_stub_only(work_dir, titles, "stubonly.typ")
+        stub_pages = compile_typ(work_dir, "stubonly.typ", "stubonly.pdf", timeout=120)
         render.write_toc_test(work_dir, titles, toc_font_size, "preview.typ")
-        toc_pages = compile_typ(work_dir, "preview.typ", "preview.pdf", timeout=120)
+        toc_pages = compile_typ(work_dir, "preview.typ", "preview.pdf", timeout=120) - stub_pages
         logger.info("TOC preview: manual entries_font_size=%.1fpt for %d titles -> %d page(s)", toc_font_size, len(titles), toc_pages)
     else:
         toc_font_size, toc_pages = _fit_toc_font_size(work_dir, titles, test_typ="preview.typ", test_pdf="preview.pdf")

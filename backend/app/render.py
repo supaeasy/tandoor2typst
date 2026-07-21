@@ -104,19 +104,41 @@ def write_main(
         f.write(body)
 
 
+def _write_stub_headings(parts: list[str], titles: list[str]) -> None:
+    # Tiny and tightly packed so these always take as few pages as possible -
+    # keeps the "how many pages do the stubs alone need" measurement small
+    # and stable regardless of how many recipes there are.
+    parts.append("#set text(size: 4pt)\n")
+    for index, title in enumerate(titles):
+        parts.append(f"#let title{index} = {_typst_string_literal(title)}\n")
+        parts.append(f"#heading(level: 1)[#title{index}]\n")
+
+
 def write_toc_test(work_dir: str, titles: list[str], entries_font_size_pt: float, filename: str) -> None:
     """Writes a lightweight stand-in document: the real toc_page() (so its
     page count is accurate) followed by bare, body-less headings for each
     recipe title - #outline() only needs the headings to exist somewhere to
     list them, so this avoids compiling every recipe's full content just to
-    measure how many pages the table of contents itself needs."""
+    measure how many pages the table of contents itself needs. The compiled
+    page count includes both the TOC and these stub pages - see
+    write_stub_only() for measuring the stub pages alone so they can be
+    subtracted back out."""
     ensure_template_copied(work_dir)
     parts = [
         '#import "template.typ": toc_page\n',
         f"#toc_page(entries_font_size_pt: {entries_font_size_pt}pt)\n#pagebreak()\n",
     ]
-    for index, title in enumerate(titles):
-        parts.append(f"#let title{index} = {_typst_string_literal(title)}\n")
-        parts.append(f"#heading(level: 1)[#title{index}]\n")
+    _write_stub_headings(parts, titles)
+    with open(os.path.join(work_dir, filename), "w", encoding="utf-8") as f:
+        f.write("".join(parts))
+
+
+def write_stub_only(work_dir: str, titles: list[str], filename: str) -> None:
+    """The same bare stub headings as write_toc_test(), without toc_page() -
+    used once to measure how many pages the stubs alone take up, so that
+    count can be subtracted from a write_toc_test() total to get the TOC's
+    own page count (see main._fit_toc_font_size)."""
+    parts: list[str] = []
+    _write_stub_headings(parts, titles)
     with open(os.path.join(work_dir, filename), "w", encoding="utf-8") as f:
         f.write("".join(parts))
