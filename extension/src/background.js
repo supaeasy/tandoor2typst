@@ -6,6 +6,50 @@ importScripts("settings.js");
 const STATE_KEY = "tandoor2typst_job_state";
 const IDLE_STATUSES = new Set(["idle", "finished", "error"]);
 
+// Same id as options.js uses when the user saves settings - kept in sync
+// manually since background.js (classic service worker script) and
+// options.js can't share a module.
+const CONTENT_SCRIPT_ID = "tandoor2typst-recipe-button";
+
+async function registerRecipeContentScript(tandoorHost) {
+  const origin = normalizeOrigin(tandoorHost);
+  if (!origin) return;
+
+  const existing = await chrome.scripting.getRegisteredContentScripts({ ids: [CONTENT_SCRIPT_ID] });
+  if (existing.length) {
+    await chrome.scripting.unregisterContentScripts({ ids: [CONTENT_SCRIPT_ID] });
+  }
+  await chrome.scripting.registerContentScripts([
+    {
+      id: CONTENT_SCRIPT_ID,
+      matches: [`${origin}/recipe/*`],
+      js: ["src/settings.js", "src/content.js"],
+      runAt: "document_idle",
+    },
+  ]);
+}
+
+// Chrome doesn't reliably keep chrome.scripting.registerContentScripts()
+// registrations across an extension reload/update (or sometimes a browser
+// restart) - previously the recipe-page button would then just silently stop
+// appearing until the user re-opened Options and hit Save again. Re-register
+// automatically whenever the service worker starts up, using whatever host
+// is already saved, so this is self-healing instead.
+async function reregisterFromSavedSettings() {
+  try {
+    const settings = await getSettings();
+    if (settings.tandoorHost) {
+      await registerRecipeContentScript(settings.tandoorHost);
+    }
+  } catch (err) {
+    console.error("tandoor2typst: could not re-register content script:", err);
+  }
+}
+
+chrome.runtime.onInstalled.addListener(reregisterFromSavedSettings);
+chrome.runtime.onStartup.addListener(reregisterFromSavedSettings);
+reregisterFromSavedSettings();
+
 async function setState(state) {
   await chrome.storage.session.set({ [STATE_KEY]: state });
 }

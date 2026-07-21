@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Tandoor zu PDF (Typst)",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "Erzeugt aus Tandoor-Rezepten hübsche PDFs via Typst, einzeln oder gesammelt.",
   "permissions": ["storage", "scripting", "downloads"],
   "optional_host_permissions": ["*://*/*"],
