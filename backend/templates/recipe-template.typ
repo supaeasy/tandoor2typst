@@ -316,7 +316,6 @@
     #outline(
       title: text(fill: primary_colour, font: heading_font, size: 16pt, weight: 300)[Inhaltsverzeichnis],
       target: heading.where(level: 1),
-      fill: repeat[.],
     )
   ]
 }
