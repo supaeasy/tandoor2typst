@@ -294,14 +294,14 @@
     // position rather than baked into the heading itself. Rebuilt from
     // it.body()/it.page() (rather than the bundled it.inner()) so the order
     // is title, tags, dot fill, page number - the page number stays at the
-    // far right. Tag size always tracks entries_font_size_pt - 3pt, so it
+    // far right. Tag size always tracks entries_font_size_pt - 5pt, so it
     // scales automatically with whatever size the auto-fit (or a manual
     // override) picks. Stub headings used for TOC size-testing have no such
     // metadata, so this silently shows nothing for them.
     #show outline.entry: it => context {
       let tags = query(selector(<recipe-tags>).after(it.element.location()))
       let tag_text = if tags.len() > 0 and tags.first().value.len() > 0 {
-        text(size: entries_font_size_pt - 3pt, fill: text_colour, style: "italic")[ (#tags.first().value.join(", "))]
+        text(size: entries_font_size_pt - 5pt, fill: text_colour, style: "italic")[ (#tags.first().value.join(", "))]
       } else {
         []
       }
