@@ -48,9 +48,9 @@ MIN_STEPS_FONT_SIZE = 8
 # small NAS isn't overwhelmed with parallel typst processes.
 RECIPE_WORKERS = int(os.environ.get("RECIPE_WORKERS", "4"))
 
-TOC_MAX_FONT_SIZE = 11
-TOC_MIN_FONT_SIZE = 7
+TOC_DEFAULT_FONT_SIZE = 11
 TOC_FONT_STEP = 0.5
+TOC_MAX_GROWTH = 10  # generous - the page-count guard below is what actually bounds this
 
 
 def _fit_steps_font_size(work_dir: str, recipe_files: render.RecipeFiles, test_id) -> int:
@@ -70,39 +70,68 @@ def _fit_steps_font_size(work_dir: str, recipe_files: render.RecipeFiles, test_i
     return MIN_STEPS_FONT_SIZE
 
 
-def _fit_toc_font_size(work_dir: str, titles: list[str]) -> float:
-    """Finds the largest entries_font_size_pt for the table of contents that
-    still results in the fewest possible pages - so instead of always using
-    one fixed size (leaving the last page mostly empty for some collections),
-    it shrinks only as much as actually needed to fill pages evenly. Uses
-    bare stub headings (see render.write_toc_test) rather than compiling
-    every recipe's full content just to count the TOC's own pages."""
-    test_typ = "toctest.typ"
-    test_pdf = "toctest.pdf"
+def _fit_toc_font_size(work_dir: str, titles: list[str], test_typ: str = "toctest.typ", test_pdf: str = "toctest.pdf") -> float:
+    """Starts at TOC_DEFAULT_FONT_SIZE and measures how many pages that needs,
+    then grows the size (and, via the template, paragraph spacing) in generous
+    steps as long as that doesn't push the table of contents onto an
+    additional page - so the default page count is filled as fully as
+    possible instead of shrinking to search for fewer pages (which doesn't
+    help when the default already leaves the last page half-empty). Uses bare
+    stub headings (see render.write_toc_test) rather than compiling every
+    recipe's full content just to count the TOC's own pages."""
 
-    size = TOC_MAX_FONT_SIZE
-    render.write_toc_test(work_dir, titles, size, test_typ)
-    best_size = size
-    best_pages = compile_typ(work_dir, test_typ, test_pdf, timeout=120)
-    logger.info("TOC: entries_font_size=%.1fpt -> %d page(s)", size, best_pages)
-
-    size -= TOC_FONT_STEP
-    while size >= TOC_MIN_FONT_SIZE:
+    def pages_at(size: float) -> int:
         render.write_toc_test(work_dir, titles, size, test_typ)
         pages = compile_typ(work_dir, test_typ, test_pdf, timeout=120)
         logger.info("TOC: entries_font_size=%.1fpt -> %d page(s)", size, pages)
-        if pages < best_pages:
-            best_size = size
-            best_pages = pages
-            size -= TOC_FONT_STEP
-        else:
+        return pages
+
+    default_pages = pages_at(TOC_DEFAULT_FONT_SIZE)
+    best_size = TOC_DEFAULT_FONT_SIZE
+    size = TOC_DEFAULT_FONT_SIZE
+    max_size = TOC_DEFAULT_FONT_SIZE + TOC_MAX_GROWTH
+    while size + TOC_FONT_STEP <= max_size:
+        size += TOC_FONT_STEP
+        if pages_at(size) > default_pages:
             break
+        best_size = size
     return best_size
 
 
 @app.get("/healthz")
 def healthz():
     return {"status": "ok"}
+
+
+@app.post("/api/toc/preview")
+def preview_toc(payload: dict = Body(...)):
+    """Fast, synchronous endpoint for testing the table-of-contents layout
+    alone (no recipe images/steps, no font-fit-per-recipe) - only fetches
+    recipe titles, then runs the same auto-fit as the real collected-book job
+    and returns the resulting cover+TOC pages (plus bare heading stand-ins
+    that #outline() needs to list). Meant for quickly iterating on the TOC's
+    look without waiting for a full "all recipes" job."""
+    host = payload.get("host")
+    token = payload.get("token")
+    if not host or not token:
+        raise HTTPException(status_code=400, detail="host and token are required.")
+
+    logger.info("TOC preview: fetching recipe titles from %s", host)
+    client = TandoorClient(host, token)
+    titles = client.fetch_all_recipe_titles()
+    if not titles:
+        raise HTTPException(status_code=502, detail="No recipes found on this Tandoor instance.")
+
+    work_dir = tempfile.mkdtemp(prefix="tandoor_toc_")
+    toc_font_size = _fit_toc_font_size(work_dir, titles, test_typ="preview.typ", test_pdf="preview.pdf")
+    logger.info("TOC preview: chosen entries_font_size=%.1fpt for %d titles", toc_font_size, len(titles))
+
+    return FileResponse(
+        os.path.join(work_dir, "preview.pdf"),
+        media_type="application/pdf",
+        headers={"Content-Disposition": _content_disposition("Inhaltsverzeichnis-Test.pdf")},
+        background=BackgroundTask(shutil.rmtree, work_dir, ignore_errors=True),
+    )
 
 
 @app.post("/api/recipe/{recipe_id}")

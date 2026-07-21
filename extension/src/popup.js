@@ -42,6 +42,26 @@ async function init() {
 
   document.getElementById("downloadAll").addEventListener("click", () => startJob(false));
   document.getElementById("downloadAllPrint").addEventListener("click", () => startJob(true));
+
+  const previewButton = document.getElementById("previewToc");
+  const tocStatus = document.getElementById("tocStatus");
+  previewButton.addEventListener("click", async () => {
+    previewButton.disabled = true;
+    tocStatus.className = "";
+    tocStatus.textContent = "Lade Rezeptliste und teste Inhaltsverzeichnis …";
+    try {
+      const blob = await previewToc(settings.backendUrl, settings.tandoorHost, settings.tandoorToken);
+      triggerBlobDownload(blob, "Inhaltsverzeichnis-Test.pdf");
+      tocStatus.className = "success";
+      tocStatus.textContent = "Fertig, PDF wurde heruntergeladen.";
+    } catch (err) {
+      console.error("tandoor2typst:", err);
+      tocStatus.className = "error";
+      tocStatus.textContent = `Fehler: ${err.message}`;
+    } finally {
+      previewButton.disabled = false;
+    }
+  });
 }
 
 init();

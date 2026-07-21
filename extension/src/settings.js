@@ -56,6 +56,19 @@ async function startAllRecipesJob(backendUrl, host, token, printMode) {
   return jobId;
 }
 
+async function previewToc(backendUrl, host, token) {
+  const response = await fetch(`${backendUrl.replace(/\/$/, "")}/api/toc/preview`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ host, token }),
+  });
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(`Server-Fehler (${response.status}): ${detail.slice(-2000)}`);
+  }
+  return await response.blob();
+}
+
 async function getJobStatus(backendUrl, jobId) {
   const base = backendUrl.replace(/\/$/, "");
   const response = await fetch(`${base}/api/jobs/${jobId}`);

@@ -48,6 +48,20 @@ class TandoorClient:
             params = None
         return ids
 
+    def fetch_all_recipe_titles(self) -> list[str]:
+        """Just the names, straight from the (already-paginated) recipe list -
+        much faster than fetching every recipe's full detail, useful when only
+        the titles are needed (e.g. to test-fit the table of contents)."""
+        titles: list[str] = []
+        url: str | None = f"{self.api_url}/recipe/"
+        params = {"page_size": 100}
+        while url:
+            data = self._get(url, params=params)
+            titles.extend(r["name"] for r in data.get("results", []))
+            url = data.get("next")
+            params = None
+        return titles
+
     def download_image(self, recipe_data: dict) -> tuple[bytes, str] | None:
         image_url = recipe_data.get("image")
         if not image_url:
