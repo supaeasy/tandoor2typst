@@ -144,15 +144,19 @@
   keywords: (),
   source_url: "",
   source_domain: "",
-  page_number: false,
   id_prefix: "r",
   steps_font_size_pt: 11pt,
   print_mode: false,
 ) = {
   set page(
     margin: (x: 54pt, y: 52pt),
-    numbering: if page_number { "1" } else { none },
-    number-align: right,
+    // Recipe pages themselves never show a visible page number (footer:
+    // none below suppresses it), but "numbering" still needs a pattern set -
+    // #outline() on the cover page formats each entry's page number using
+    // whatever numbering is set on the page it points to, so without this
+    // the table of contents would show blank page numbers.
+    numbering: "1",
+    footer: none,
     fill: if print_mode { none } else { rgb("ede8d0") },
   )
   set text(10pt, font: body_font)
@@ -275,7 +279,7 @@
   ]
 }
 
-#let recipe_from_json(recipe_data, image_path: none, page_number: false, id_prefix: "r", steps_font_size_pt: 11pt, print_mode: false) = {
+#let recipe_from_json(recipe_data, image_path: none, id_prefix: "r", steps_font_size_pt: 11pt, print_mode: false) = {
   let all_ingredients = ()
   for step in recipe_data.steps {
     for ingredient in step.ingredients {
@@ -302,7 +306,6 @@
     source_url: source_url,
     source_domain: source_domain,
     image_path: image_path,
-    page_number: page_number,
     id_prefix: id_prefix,
     steps_font_size_pt: steps_font_size_pt,
     print_mode: print_mode,

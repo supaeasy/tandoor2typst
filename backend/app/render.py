@@ -46,12 +46,11 @@ class RecipeFiles:
         self.image_arg = image_arg
         self.id_prefix = id_prefix
 
-    def call(self, page_number: bool, steps_font_size_pt: float, print_mode: bool = False) -> str:
-        page_number_arg = "true" if page_number else "false"
+    def call(self, steps_font_size_pt: float, print_mode: bool = False) -> str:
         print_mode_arg = "true" if print_mode else "false"
         return (
             f"#recipe_from_json(json({_typst_string_literal(self.json_filename)}), "
-            f"image_path: {self.image_arg}, page_number: {page_number_arg}, "
+            f"image_path: {self.image_arg}, "
             f"id_prefix: {_typst_string_literal(self.id_prefix)}, "
             f"steps_font_size_pt: {steps_font_size_pt}pt, print_mode: {print_mode_arg})\n"
         )

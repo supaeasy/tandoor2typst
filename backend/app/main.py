@@ -58,7 +58,7 @@ def _fit_steps_font_size(work_dir: str, recipe_files: render.RecipeFiles, test_i
     test_typ = f"sizetest_{test_id}.typ"
     test_pdf = f"sizetest_{test_id}.pdf"
     for size in range(DEFAULT_STEPS_FONT_SIZE, MIN_STEPS_FONT_SIZE - 1, -1):
-        render.write_main(work_dir, [recipe_files.call(page_number=False, steps_font_size_pt=size)], filename=test_typ)
+        render.write_main(work_dir, [recipe_files.call(steps_font_size_pt=size)], filename=test_typ)
         pages = compile_typ(work_dir, test_typ, test_pdf, timeout=60)
         logger.info("Recipe %s: steps_font_size=%dpt -> %d page(s)", test_id, size, pages)
         if pages <= 1:
@@ -87,7 +87,7 @@ def get_recipe_pdf(recipe_id: int, payload: dict = Body(...)):
     work_dir = tempfile.mkdtemp(prefix="tandoor_pdf_")
     recipe_files = render.write_recipe_files(work_dir, recipe, "single", image)
     font_size = _fit_steps_font_size(work_dir, recipe_files, "single")
-    render.write_main(work_dir, [recipe_files.call(page_number=False, steps_font_size_pt=font_size)])
+    render.write_main(work_dir, [recipe_files.call(steps_font_size_pt=font_size)])
 
     logger.info("Recipe %s (%s): compiling PDF", recipe_id, recipe_name)
     compile_typ(work_dir, "main.typ", "main.pdf")
@@ -123,7 +123,7 @@ def _process_recipe(work_dir: str, client: TandoorClient, index: int, recipe_id:
     image = client.download_image(recipe)
     recipe_files = render.write_recipe_files(work_dir, recipe, index, image)
     font_size = _fit_steps_font_size(work_dir, recipe_files, index)
-    return recipe_files.call(page_number=True, steps_font_size_pt=font_size, print_mode=print_mode)
+    return recipe_files.call(steps_font_size_pt=font_size, print_mode=print_mode)
 
 
 def _run_all_recipes_job(job_id: str, host: str, token: str, print_mode: bool = False) -> None:
