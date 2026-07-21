@@ -87,16 +87,36 @@ def write_main(
     filename: str = "main.typ",
     include_toc: bool = False,
     print_mode: bool = False,
+    toc_font_size_pt: float = 11,
 ) -> None:
     ensure_template_copied(work_dir)
     if include_toc:
         print_mode_arg = "true" if print_mode else "false"
         header = (
             '#import "template.typ": recipe_from_json, toc_page\n'
-            f"#toc_page(print_mode: {print_mode_arg})\n#pagebreak()\n#counter(page).update(1)\n"
+            f"#toc_page(print_mode: {print_mode_arg}, entries_font_size_pt: {toc_font_size_pt}pt)\n"
+            "#pagebreak()\n#counter(page).update(1)\n"
         )
     else:
         header = '#import "template.typ": recipe_from_json\n'
     body = header + "#pagebreak()\n".join(entries)
     with open(os.path.join(work_dir, filename), "w", encoding="utf-8") as f:
         f.write(body)
+
+
+def write_toc_test(work_dir: str, titles: list[str], entries_font_size_pt: float, filename: str) -> None:
+    """Writes a lightweight stand-in document: the real toc_page() (so its
+    page count is accurate) followed by bare, body-less headings for each
+    recipe title - #outline() only needs the headings to exist somewhere to
+    list them, so this avoids compiling every recipe's full content just to
+    measure how many pages the table of contents itself needs."""
+    ensure_template_copied(work_dir)
+    parts = [
+        '#import "template.typ": toc_page\n',
+        f"#toc_page(entries_font_size_pt: {entries_font_size_pt}pt)\n#pagebreak()\n",
+    ]
+    for index, title in enumerate(titles):
+        parts.append(f"#let title{index} = {_typst_string_literal(title)}\n")
+        parts.append(f"#heading(level: 1)[#title{index}]\n")
+    with open(os.path.join(work_dir, filename), "w", encoding="utf-8") as f:
+        f.write("".join(parts))

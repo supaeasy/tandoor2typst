@@ -48,6 +48,10 @@ MIN_STEPS_FONT_SIZE = 8
 # small NAS isn't overwhelmed with parallel typst processes.
 RECIPE_WORKERS = int(os.environ.get("RECIPE_WORKERS", "4"))
 
+TOC_MAX_FONT_SIZE = 11
+TOC_MIN_FONT_SIZE = 7
+TOC_FONT_STEP = 0.5
+
 
 def _fit_steps_font_size(work_dir: str, recipe_files: render.RecipeFiles, test_id) -> int:
     """The preparation-steps column now defaults to a larger font than
@@ -64,6 +68,36 @@ def _fit_steps_font_size(work_dir: str, recipe_files: render.RecipeFiles, test_i
         if pages <= 1:
             return size
     return MIN_STEPS_FONT_SIZE
+
+
+def _fit_toc_font_size(work_dir: str, titles: list[str]) -> float:
+    """Finds the largest entries_font_size_pt for the table of contents that
+    still results in the fewest possible pages - so instead of always using
+    one fixed size (leaving the last page mostly empty for some collections),
+    it shrinks only as much as actually needed to fill pages evenly. Uses
+    bare stub headings (see render.write_toc_test) rather than compiling
+    every recipe's full content just to count the TOC's own pages."""
+    test_typ = "toctest.typ"
+    test_pdf = "toctest.pdf"
+
+    size = TOC_MAX_FONT_SIZE
+    render.write_toc_test(work_dir, titles, size, test_typ)
+    best_size = size
+    best_pages = compile_typ(work_dir, test_typ, test_pdf, timeout=120)
+    logger.info("TOC: entries_font_size=%.1fpt -> %d page(s)", size, best_pages)
+
+    size -= TOC_FONT_STEP
+    while size >= TOC_MIN_FONT_SIZE:
+        render.write_toc_test(work_dir, titles, size, test_typ)
+        pages = compile_typ(work_dir, test_typ, test_pdf, timeout=120)
+        logger.info("TOC: entries_font_size=%.1fpt -> %d page(s)", size, pages)
+        if pages < best_pages:
+            best_size = size
+            best_pages = pages
+            size -= TOC_FONT_STEP
+        else:
+            break
+    return best_size
 
 
 @app.get("/healthz")
@@ -114,16 +148,20 @@ def _set_job(job_id: str, **fields) -> None:
         JOBS.setdefault(job_id, {}).update(fields)
 
 
-def _process_recipe(work_dir: str, client: TandoorClient, index: int, recipe_id: int, print_mode: bool) -> str:
+def _process_recipe(work_dir: str, client: TandoorClient, index: int, recipe_id: int, print_mode: bool) -> tuple[str, str]:
     """Fetches one recipe + its image and finds its fitting font size. Runs in
     a worker thread - safe because TandoorClient is stateless per-call and
     every file this writes (recipe_{index}.json, image_{index}.*,
-    sizetest_{index}.*) is uniquely named per recipe index."""
+    sizetest_{index}.*) is uniquely named per recipe index. Returns the
+    recipe's Typst call plus its plain title (needed for the TOC font-size
+    fit, see _fit_toc_font_size)."""
     recipe = client.fetch_recipe(recipe_id)
     image = client.download_image(recipe)
     recipe_files = render.write_recipe_files(work_dir, recipe, index, image)
     font_size = _fit_steps_font_size(work_dir, recipe_files, index)
-    return recipe_files.call(steps_font_size_pt=font_size, print_mode=print_mode)
+    entry = recipe_files.call(steps_font_size_pt=font_size, print_mode=print_mode)
+    title = recipe.get("name") or f"Recipe {recipe_id}"
+    return entry, title
 
 
 def _run_all_recipes_job(job_id: str, host: str, token: str, print_mode: bool = False) -> None:
@@ -140,6 +178,7 @@ def _run_all_recipes_job(job_id: str, host: str, token: str, print_mode: bool = 
 
         work_dir = tempfile.mkdtemp(prefix="tandoor_book_")
         entries: list[str | None] = [None] * len(recipe_ids)
+        titles: list[str | None] = [None] * len(recipe_ids)
         completed = 0
         with ThreadPoolExecutor(max_workers=RECIPE_WORKERS) as executor:
             futures = {
@@ -148,12 +187,15 @@ def _run_all_recipes_job(job_id: str, host: str, token: str, print_mode: bool = 
             }
             for future in as_completed(futures):
                 index = futures[future]
-                entries[index] = future.result()
+                entries[index], titles[index] = future.result()
                 completed += 1
                 logger.info("Job %s: recipe %d/%d done (id=%s)", job_id, completed, len(recipe_ids), recipe_ids[index])
                 _set_job(job_id, current=completed)
 
-        render.write_main(work_dir, entries, include_toc=True, print_mode=print_mode)
+        logger.info("Job %s: fitting table of contents font size", job_id)
+        _set_job(job_id, status="compiling")
+        toc_font_size = _fit_toc_font_size(work_dir, titles)
+        render.write_main(work_dir, entries, include_toc=True, print_mode=print_mode, toc_font_size_pt=toc_font_size)
 
         logger.info("Job %s: compiling %d recipes", job_id, len(recipe_ids))
         _set_job(job_id, status="compiling")

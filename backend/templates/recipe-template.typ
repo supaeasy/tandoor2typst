@@ -261,21 +261,30 @@
 // Cover/table-of-contents page for the collected "all recipes" book. Only
 // recipe titles (level-1 headings) show up, not the Zutaten/Zubereitung
 // sub-headings inside each recipe (those are level 2).
-#let toc_page(print_mode: false) = {
+#let toc_page(print_mode: false, entries_font_size_pt: 11pt) = {
   set page(
     margin: (x: 54pt, y: 52pt),
     fill: if print_mode { none } else { rgb("ede8d0") },
     numbering: none,
   )
-  align(center + horizon)[
+  // Not vertically centered (align(horizon) doesn't behave sensibly once the
+  // outline spans multiple pages) - the title sits at the top, and the
+  // outline just flows downward normally, page after page if it needs to.
+  align(center)[
     #text(fill: primary_colour, font: title_font, size: 32pt, weight: 200)[REZEPTSAMMLUNG]
-    #v(2em)
-    #align(left)[
-      #outline(
-        title: text(fill: primary_colour, font: heading_font, size: 16pt, weight: 300)[Inhaltsverzeichnis],
-        target: heading.where(level: 1),
-      )
-    ]
+  ]
+  v(2em)
+  align(left)[
+    // entries_font_size_pt is chosen by the backend (see main._fit_toc_font_size)
+    // to be the largest size that still uses the fewest possible pages - so
+    // the table of contents fills each page it needs as fully as reasonable,
+    // rather than always defaulting to one fixed size regardless of length.
+    #set text(size: entries_font_size_pt, font: body_font, fill: text_colour)
+    #set par(spacing: entries_font_size_pt * 0.5)
+    #outline(
+      title: text(fill: primary_colour, font: heading_font, size: 16pt, weight: 300)[Inhaltsverzeichnis],
+      target: heading.where(level: 1),
+    )
   ]
 }
 
