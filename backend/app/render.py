@@ -49,6 +49,52 @@ def _annotate_amounts(recipe: dict) -> None:
             ingredient["amount_frac"] = _amount_to_fraction_parts(ingredient.get("amount", 0))
 
 
+def _format_nutrition_value(value: float, unit: str) -> str:
+    # Whole numbers for kcal and anything >= 10 g; one decimal below that so
+    # small values (e.g. 2.5 g fat) don't collapse to a misleading 3 or 2.
+    if unit == "kcal" or value >= 10:
+        return str(int(value + 0.5))
+    return f"{value:.1f}"
+
+
+def _annotate_nutrition(recipe: dict) -> None:
+    """Derives a per-serving nutrition summary from Tandoor's computed
+    food_properties (type id -> {name, unit, order, total_value, missing_value};
+    total_value covers the whole recipe, so it's divided by servings). The
+    manual `nutrition` field is empty in practice and not used. Stored as
+    recipe["nutrition_display"], or None if there's nothing worth showing."""
+    properties = recipe.get("food_properties") or {}
+    try:
+        servings = float(recipe.get("servings") or 1)
+    except (TypeError, ValueError):
+        servings = 1.0
+    if servings <= 0:
+        servings = 1.0
+
+    items = []
+    incomplete = False
+    for prop in sorted(properties.values(), key=lambda p: (p.get("order", 0), p.get("id", 0))):
+        total = prop.get("total_value")
+        if total is None:
+            continue
+        unit = prop.get("unit") or ""
+        items.append({
+            "name": prop.get("name") or "",
+            "value": _format_nutrition_value(float(total) / servings, unit),
+            "unit": unit,
+            "raw": float(total),
+        })
+        incomplete = incomplete or bool(prop.get("missing_value"))
+
+    if not any(item["raw"] > 0 for item in items):
+        recipe["nutrition_display"] = None
+        return
+    recipe["nutrition_display"] = {
+        "items": [{k: v for k, v in item.items() if k != "raw"} for item in items],
+        "incomplete": incomplete,
+    }
+
+
 class RecipeFiles:
     """Paths/ids for a recipe already written to work_dir, reusable across
     several test compiles at different font sizes (see main._fit_steps_font_size)
@@ -77,6 +123,7 @@ def write_recipe_files(
 ) -> RecipeFiles:
     """Writes recipe_{index}.json (and the image, if any) into work_dir."""
     _annotate_amounts(recipe)
+    _annotate_nutrition(recipe)
     json_filename = f"recipe_{index}.json"
     with open(os.path.join(work_dir, json_filename), "w", encoding="utf-8") as f:
         json.dump(recipe, f)

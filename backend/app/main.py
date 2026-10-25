@@ -219,6 +219,7 @@ def preview_toc(payload: dict = Body(...)):
 def get_recipe_pdf(recipe_id: int, payload: dict = Body(...)):
     host = payload.get("host")
     token = payload.get("token")
+    print_mode = bool(payload.get("print_mode", False))
     if not host or not token:
         raise HTTPException(status_code=400, detail="host and token are required.")
 
@@ -231,12 +232,12 @@ def get_recipe_pdf(recipe_id: int, payload: dict = Body(...)):
     work_dir = tempfile.mkdtemp(prefix="tandoor_pdf_")
     recipe_files = render.write_recipe_files(work_dir, recipe, "single", image)
     font_size = _fit_steps_font_size(work_dir, recipe_files, "single")
-    render.write_main(work_dir, [recipe_files.call(steps_font_size_pt=font_size)])
+    render.write_main(work_dir, [recipe_files.call(steps_font_size_pt=font_size, print_mode=print_mode)])
 
-    logger.info("Recipe %s (%s): compiling PDF", recipe_id, recipe_name)
+    logger.info("Recipe %s (%s): compiling PDF (print_mode=%s)", recipe_id, recipe_name, print_mode)
     compile_typ(work_dir, "main.typ", "main.pdf")
     logger.info("Recipe %s (%s): done, sending PDF", recipe_id, recipe_name)
-    download_name = f"{_sanitize_filename(recipe_name)}.pdf"
+    download_name = f"{_sanitize_filename(recipe_name)}{'-Druck' if print_mode else ''}.pdf"
 
     return FileResponse(
         os.path.join(work_dir, "main.pdf"),

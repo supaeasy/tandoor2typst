@@ -51,8 +51,13 @@ In Tandoor: `[Tandoor URL]/api/access-token/` → create a token with `read` sco
    - **API token**: the token you just created
    - **Backend server URL**: e.g. `http://192.168.1.50:8124`
 4. Save → the browser will ask for permission to access these two addresses; confirm.
-5. Reload a recipe page in Tandoor → a small PDF icon button appears in the top toolbar next to the
-   search button whenever you're viewing a recipe.
+5. Reload a recipe page in Tandoor → two small icon buttons appear in the top toolbar next to the
+   search button whenever you're viewing a recipe: **PDF** (the regular colored page) and **print**
+   (the same recipe without the page background color, for printing on colored paper).
+
+Each recipe PDF includes the nutrition values per serving (calories, protein, fat, carbohydrates) as one
+line above the cookware note, calculated by Tandoor from the ingredients' food properties. If some
+ingredients have no nutrition data, the line is marked "(unvollständig)".
 
 ## Downloading all recipes as a collected PDF
 
@@ -136,7 +141,12 @@ In Tandoor: `[Tandoor-URL]/api/access-token/` → Token mit Scope `read` erstell
    - **Backend-Server-URL**: z.B. `http://192.168.1.50:8124`
 4. Speichern → Browser fragt nach Zugriffsrechten für diese beiden Adressen, bestätigen.
 5. Eine Rezeptseite in Tandoor neu laden → in der oberen Werkzeugleiste neben dem Suchen-Button
-   erscheint ein kleiner PDF-Icon-Button, sobald du ein Rezept ansiehst.
+   erscheinen zwei kleine Icon-Buttons, sobald du ein Rezept ansiehst: **PDF** (normale Seite mit
+   Hintergrundfarbe) und **Drucken** (dasselbe Rezept ohne Hintergrundfarbe, für farbiges Papier).
+
+Jedes Rezept-PDF enthält die Nährwerte pro Portion (Kalorien, Proteine, Fett, Kohlenhydrate) als eine
+Zeile über dem Hinweis zum benötigten Geschirr - von Tandoor aus den Nährwert-Eigenschaften der Zutaten
+berechnet. Fehlen bei einzelnen Zutaten die Daten, wird die Zeile mit „(unvollständig)" markiert.
 
 ## Alle Rezepte gesammelt herunterladen
 

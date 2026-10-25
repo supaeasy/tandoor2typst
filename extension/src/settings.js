@@ -28,11 +28,11 @@ async function saveSettings(settings) {
   await chrome.storage.local.set({ [SETTINGS_KEY]: settings });
 }
 
-async function requestRecipePdf(backendUrl, host, token, recipeId) {
+async function requestRecipePdf(backendUrl, host, token, recipeId, printMode) {
   const response = await fetch(`${backendUrl.replace(/\/$/, "")}/api/recipe/${recipeId}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ host, token }),
+    body: JSON.stringify({ host, token, print_mode: !!printMode }),
   });
   if (!response.ok) {
     const detail = await response.text();

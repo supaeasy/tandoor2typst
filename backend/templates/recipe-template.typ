@@ -131,6 +131,19 @@
   }
 }
 
+// One compact line: "NÄHRWERTE PRO PORTION  Kalorien 1044 kcal · Proteine 78 g · ...".
+// The values arrive pre-divided by servings and pre-formatted by the backend
+// (see _annotate_nutrition in app/render.py). A single line rather than a
+// block in the ingredients column, so it costs almost no page height - the
+// longest recipes are already tight on one page.
+#let display_nutrition(nutrition) = {
+  set text(size: 8.5pt, fill: text_colour, font: body_font)
+  text(fill: primary_colour, font: heading_font, weight: 300, size: 7.5pt)[#upper[Nährwerte pro Portion]]
+  h(8pt)
+  nutrition.items.map(item => [#item.name #item.value#amount_unit_space(item.unit)#item.unit]).join([ · ])
+  if nutrition.incomplete [ _(unvollständig)_]
+}
+
 #let recipe(
   title: "",
   description: "",
@@ -141,6 +154,7 @@
   waiting_time: "",
   ingredients: (),
   steps: (),
+  nutrition: none,
   keywords: (),
   source_url: "",
   source_domain: "",
@@ -252,6 +266,11 @@
   )
   v(30pt)
 
+  if nutrition != none {
+    display_nutrition(nutrition)
+    v(4pt)
+  }
+
   if servings_text != "" {
     // Plain (non-placed) flow content always renders directly above the
     // footnote separator, since Typst appends the footnote area after all
@@ -333,6 +352,7 @@
   let source_url = if recipe_data.at("source_url", default: none) not in (none, "") { recipe_data.source_url } else { "" }
   let source_domain = if recipe_data.at("source_domain", default: none) not in (none, "") { recipe_data.source_domain } else { "" }
   let keywords = recipe_data.at("keywords", default: ())
+  let nutrition = recipe_data.at("nutrition_display", default: none)
 
   recipe(
     title: recipe_data.name,
@@ -343,6 +363,7 @@
     waiting_time: waiting_time,
     ingredients: all_ingredients,
     steps: recipe_data.steps,
+    nutrition: nutrition,
     keywords: keywords,
     source_url: source_url,
     source_domain: source_domain,
