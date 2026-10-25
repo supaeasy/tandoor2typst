@@ -55,9 +55,10 @@ In Tandoor: `[Tandoor URL]/api/access-token/` → create a token with `read` sco
    search button whenever you're viewing a recipe: **PDF** (the regular colored page) and **print**
    (the same recipe without the page background color, for printing on colored paper).
 
-Each recipe PDF includes the nutrition values per serving (calories, protein, fat, carbohydrates) as one
-line above the cookware note, calculated by Tandoor from the ingredients' food properties. If some
-ingredients have no nutrition data, the line is marked "(unvollständig)".
+Each recipe PDF includes a nutrition table per serving (calories, protein, fat, carbohydrates for every
+ingredient plus a total) at the bottom right, next to the footnotes, calculated by Tandoor from the
+ingredients' food properties. If some ingredients have no nutrition data, the table is marked
+"(unvollständig)".
 
 ## Downloading all recipes as a collected PDF
 
@@ -144,9 +145,10 @@ In Tandoor: `[Tandoor-URL]/api/access-token/` → Token mit Scope `read` erstell
    erscheinen zwei kleine Icon-Buttons, sobald du ein Rezept ansiehst: **PDF** (normale Seite mit
    Hintergrundfarbe) und **Drucken** (dasselbe Rezept ohne Hintergrundfarbe, für farbiges Papier).
 
-Jedes Rezept-PDF enthält die Nährwerte pro Portion (Kalorien, Proteine, Fett, Kohlenhydrate) als eine
-Zeile über dem Hinweis zum benötigten Geschirr - von Tandoor aus den Nährwert-Eigenschaften der Zutaten
-berechnet. Fehlen bei einzelnen Zutaten die Daten, wird die Zeile mit „(unvollständig)" markiert.
+Jedes Rezept-PDF enthält eine Nährwerttabelle pro Portion (Kalorien, Proteine, Fett, Kohlenhydrate je
+Zutat plus Total) unten rechts neben den Fussnoten - von Tandoor aus den Nährwert-Eigenschaften der
+Zutaten berechnet. Fehlen bei einzelnen Zutaten die Daten, wird die Tabelle mit „(unvollständig)"
+markiert.
 
 ## Alle Rezepte gesammelt herunterladen
 

@@ -131,17 +131,48 @@
   }
 }
 
-// One compact line: "NÄHRWERTE PRO PORTION  Kalorien 1044 kcal · Proteine 78 g · ...".
-// The values arrive pre-divided by servings and pre-formatted by the backend
-// (see _annotate_nutrition in app/render.py). A single line rather than a
-// block in the ingredients column, so it costs almost no page height - the
-// longest recipes are already tight on one page.
-#let display_nutrition(nutrition) = {
-  set text(size: 8.5pt, fill: text_colour, font: body_font)
-  text(fill: primary_colour, font: heading_font, weight: 300, size: 7.5pt)[#upper[Nährwerte pro Portion]]
-  h(8pt)
-  nutrition.items.map(item => [#item.name #item.value#amount_unit_space(item.unit)#item.unit]).join([ · ])
-  if nutrition.incomplete [ _(unvollständig)_]
+// Counts distinct non-empty ingredient notes - the same dedup rule
+// display_ingredients uses for footnote numbers. Only used to estimate how tall
+// the footnote area at the page bottom will be (see recipe()).
+#let count_distinct_notes(ingredients) = {
+  let seen = (:)
+  for ingredient in ingredients {
+    if ingredient.note not in (none, "") and ingredient.note not in seen {
+      seen.insert(ingredient.note, true)
+    }
+  }
+  seen.len()
+}
+
+// Fixed width, so recipe() can keep the footnotes (short, left) and this table
+// (right) side by side: footnotes are at most ~150pt wide, this leaves room.
+#let nutrition_table_width = 235pt
+
+// Per-serving nutrition for every ingredient plus a total row. The numbers
+// arrive pre-divided by servings and pre-formatted by the backend (see
+// _annotate_nutrition in app/render.py).
+#let nutrition_table(nutrition, font_size) = {
+  set text(size: font_size, fill: text_colour, font: body_font)
+  let ncols = nutrition.columns.len()
+  block(width: nutrition_table_width, {
+    text(fill: primary_colour, font: heading_font, weight: 300, size: font_size)[#upper[Nährwerte pro Portion]]
+    if nutrition.incomplete [ #text(size: 0.9em)[_(unvollständig)_]]
+    v(2pt, weak: true)
+    table(
+      columns: (1fr,) + (auto,) * ncols,
+      align: (left,) + (right,) * ncols,
+      stroke: none,
+      inset: (x: 2.5pt, y: 0.7pt),
+      table.hline(stroke: 0.5pt + primary_colour),
+      table.cell(align: left)[],
+      ..nutrition.columns.map(c => table.cell(align: right)[#c.name\ #text(size: 0.85em)[(#c.unit)]]),
+      table.hline(stroke: 0.3pt + primary_colour),
+      ..nutrition.rows.map(row => (row.name, ..row.values)).flatten(),
+      table.hline(stroke: 0.5pt + primary_colour),
+      table.cell(align: left)[*Total*],
+      ..nutrition.total.map(v => [*#v*]),
+    )
+  })
 }
 
 #let recipe(
@@ -266,11 +297,6 @@
   )
   v(30pt)
 
-  if nutrition != none {
-    display_nutrition(nutrition)
-    v(4pt)
-  }
-
   if servings_text != "" {
     // Plain (non-placed) flow content always renders directly above the
     // footnote separator, since Typst appends the footnote area after all
@@ -281,6 +307,29 @@
       #set text(size: 9pt, fill: text_colour, font: body_font)
       *Benötigtes Geschirr:* #servings_text
     ]
+  }
+
+  if nutrition != none {
+    // Bottom-right, level with the footnotes: placed absolutely against the
+    // bottom of the page's content area (top anchor + dy, which - unlike a
+    // bottom anchor - doesn't depend on how tall the footnote area is). It
+    // grows upward, so it can be taller than the footnotes next to it; the
+    // block below keeps that extra height free in the normal flow, so
+    // steps / cookware note stop above it and the page-count fit in the
+    // backend accounts for the table. The footnote height is deliberately
+    // underestimated (a bit less than a real line each): a too-small
+    // reservation could overlap, a too-big one only wastes a few points.
+    context {
+      let tbl = nutrition_table(nutrition, 6pt)
+      let h = measure(tbl).height
+      let footnote_height = count_distinct_notes(ingredients) * 10pt
+      place(
+        top + right,
+        dy: calc.max(0pt, page.height - page.margin.top - page.margin.bottom - h),
+        tbl,
+      )
+      block(width: 100%, height: calc.max(0pt, h - footnote_height - 14pt))
+    }
   }
 }
 

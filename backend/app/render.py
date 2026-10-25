@@ -50,20 +50,26 @@ def _annotate_amounts(recipe: dict) -> None:
 
 
 def _format_nutrition_value(value: float, unit: str) -> str:
-    # Whole numbers for kcal and anything >= 10 g; one decimal below that so
-    # small values (e.g. 2.5 g fat) don't collapse to a misleading 3 or 2.
-    if unit == "kcal" or value >= 10:
+    # kcal as whole numbers, grams with one decimal - consistently, so the
+    # columns of the nutrition table line up instead of mixing 78 and 2.5.
+    if unit == "kcal":
         return str(int(value + 0.5))
     return f"{value:.1f}"
 
 
 def _annotate_nutrition(recipe: dict) -> None:
-    """Derives a per-serving nutrition summary from Tandoor's computed
-    food_properties (type id -> {name, unit, order, total_value, missing_value};
-    total_value covers the whole recipe, so it's divided by servings). The
-    manual `nutrition` field is empty in practice and not used. Stored as
-    recipe["nutrition_display"], or None if there's nothing worth showing."""
-    properties = recipe.get("food_properties") or {}
+    """Derives the per-serving nutrition table from Tandoor's computed
+    food_properties: {property id -> {name, unit, order, total_value,
+    missing_value, food_values: {food id -> {food: {name}, value}}}}. Values
+    cover the whole recipe, so everything is divided by servings. One row per
+    distinct food (in order of first appearance among the ingredients), plus
+    a per-serving total. The manual `nutrition` field is empty in practice
+    and not used. Stored as recipe["nutrition_display"] ({columns, rows,
+    total, incomplete}), or None if there's nothing worth showing."""
+    properties = sorted(
+        (recipe.get("food_properties") or {}).values(),
+        key=lambda p: (p.get("order", 0), p.get("id", 0)),
+    )
     try:
         servings = float(recipe.get("servings") or 1)
     except (TypeError, ValueError):
@@ -71,27 +77,47 @@ def _annotate_nutrition(recipe: dict) -> None:
     if servings <= 0:
         servings = 1.0
 
-    items = []
-    incomplete = False
-    for prop in sorted(properties.values(), key=lambda p: (p.get("order", 0), p.get("id", 0))):
-        total = prop.get("total_value")
-        if total is None:
-            continue
-        unit = prop.get("unit") or ""
-        items.append({
-            "name": prop.get("name") or "",
-            "value": _format_nutrition_value(float(total) / servings, unit),
-            "unit": unit,
-            "raw": float(total),
-        })
-        incomplete = incomplete or bool(prop.get("missing_value"))
-
-    if not any(item["raw"] > 0 for item in items):
+    totals = [float(p.get("total_value") or 0) for p in properties]
+    if not any(t > 0 for t in totals):
         recipe["nutrition_display"] = None
         return
+
+    # Distinct foods in ingredient order; anything Tandoor counted that isn't
+    # a plain ingredient (e.g. from a sub-recipe) is appended afterwards.
+    food_ids: list[str] = []
+    for step in recipe.get("steps") or []:
+        for ingredient in step.get("ingredients") or []:
+            food = ingredient.get("food")
+            if ingredient.get("is_header") or not food:
+                continue
+            fid = str(food.get("id"))
+            if fid not in food_ids:
+                food_ids.append(fid)
+    for prop in properties:
+        for fid in (prop.get("food_values") or {}):
+            if fid not in food_ids:
+                food_ids.append(fid)
+
+    rows = []
+    for fid in food_ids:
+        name = ""
+        values = []
+        for prop in properties:
+            entry = (prop.get("food_values") or {}).get(fid)
+            if entry is None:
+                values.append("–")
+                continue
+            name = name or (entry.get("food") or {}).get("name") or ""
+            values.append(_format_nutrition_value(float(entry.get("value") or 0) / servings, prop.get("unit") or ""))
+        rows.append({"name": name, "values": values})
+
     recipe["nutrition_display"] = {
-        "items": [{k: v for k, v in item.items() if k != "raw"} for item in items],
-        "incomplete": incomplete,
+        "columns": [{"name": p.get("name") or "", "unit": p.get("unit") or ""} for p in properties],
+        "rows": rows,
+        "total": [
+            _format_nutrition_value(t / servings, p.get("unit") or "") for t, p in zip(totals, properties)
+        ],
+        "incomplete": any(bool(p.get("missing_value")) for p in properties),
     }
 
 
