@@ -162,7 +162,7 @@
       columns: (1fr,) + (auto,) * ncols,
       align: (left,) + (right,) * ncols,
       stroke: none,
-      inset: (x: 2.5pt, y: 1.3pt),
+      inset: (x: 2.5pt, y: 1.6pt),
       table.hline(stroke: 0.5pt + primary_colour),
       table.cell(align: left)[],
       ..nutrition.columns.map(c => table.cell(align: right)[#c.name\ #text(size: 0.85em)[(#c.unit)]]),
@@ -295,7 +295,7 @@
       #display_steps(steps)
     ],
   )
-  v(30pt)
+  v(if nutrition != none { 12pt } else { 30pt })
 
   if servings_text != "" {
     // Plain (non-placed) flow content always renders directly above the
