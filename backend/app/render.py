@@ -109,6 +109,9 @@ def _annotate_nutrition(recipe: dict) -> None:
                 continue
             name = name or (entry.get("food") or {}).get("name") or ""
             values.append(_format_nutrition_value(float(entry.get("value") or 0) / servings, prop.get("unit") or ""))
+        # Foods that only contribute zeros (salt, pepper, ...) add nothing.
+        if all(v in ("–", "0", "0.0") for v in values):
+            continue
         rows.append({"name": name, "values": values})
 
     recipe["nutrition_display"] = {
